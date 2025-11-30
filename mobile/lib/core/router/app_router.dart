@@ -6,6 +6,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/notes/presentation/notes_list_screen.dart';
 import '../../features/notes/presentation/note_edit_screen.dart';
+import '../../features/notes/presentation/trash_screen.dart';
 import '../presentation/splash_screen.dart';
 
 part 'app_router.g.dart';
@@ -57,6 +58,10 @@ GoRouter goRouter(Ref ref) {
               final id = state.pathParameters['id'];
               return NoteEditScreen(noteId: id);
             },
+          ),
+          GoRoute(
+            path: 'trash',
+            builder: (context, state) => const TrashScreen(),
           ),
         ],
       ),

@@ -21,4 +21,3 @@ export class CreateNoteDto {
   @IsOptional()
   color?: string;
 }
-

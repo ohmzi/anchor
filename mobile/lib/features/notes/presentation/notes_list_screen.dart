@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:anchor/features/notes/domain/note.dart';
 import 'package:anchor/core/widgets/confirm_dialog.dart';
-import '../data/repository/notes_repository.dart';
 import 'notes_controller.dart';
 import '../../auth/presentation/auth_controller.dart';
 
@@ -72,9 +71,14 @@ class NotesListScreen extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(LucideIcons.refreshCw),
                   onPressed: () {
-                    ref.read(notesRepositoryProvider).sync();
+                    ref.read(notesControllerProvider.notifier).sync();
                   },
                   tooltip: 'Sync Notes',
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.trash2),
+                  onPressed: () => context.push('/trash'),
+                  tooltip: 'Trash',
                 ),
                 IconButton(
                   icon: const Icon(LucideIcons.logOut),

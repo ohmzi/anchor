@@ -1,0 +1,198 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:anchor/features/notes/domain/note.dart';
+import 'package:anchor/core/widgets/confirm_dialog.dart';
+import 'notes_controller.dart';
+
+class TrashScreen extends ConsumerWidget {
+  const TrashScreen({super.key});
+
+  void _showRestoreDialog(BuildContext context, WidgetRef ref, Note note) {
+    showDialog(
+      context: context,
+      builder: (ctx) => ConfirmDialog(
+        icon: LucideIcons.rotateCcw,
+        iconColor: Theme.of(context).colorScheme.primary,
+        title: 'Restore Note',
+        message: 'This note will be moved back to your notes.',
+        cancelText: 'Cancel',
+        confirmText: 'Restore',
+        onConfirm: () {
+          ref.read(trashControllerProvider.notifier).restoreNote(note.id);
+        },
+      ),
+    );
+  }
+
+  void _showPermanentDeleteDialog(
+    BuildContext context,
+    WidgetRef ref,
+    Note note,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => ConfirmDialog(
+        icon: LucideIcons.trash2,
+        iconColor: Theme.of(context).colorScheme.error,
+        title: 'Delete Forever',
+        message:
+            'This note will be permanently deleted and cannot be recovered.',
+        cancelText: 'Cancel',
+        confirmText: 'Delete Forever',
+        confirmColor: Theme.of(context).colorScheme.error,
+        onConfirm: () {
+          ref.read(trashControllerProvider.notifier).permanentDelete(note.id);
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final trashAsync = ref.watch(trashControllerProvider);
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.8),
+        leading: IconButton(
+          icon: const Icon(LucideIcons.chevronLeft),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(
+          'Trash',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.colorScheme.surface,
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            ],
+          ),
+        ),
+        child: trashAsync.when(
+          data: (notes) {
+            if (notes.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(LucideIcons.trash2, size: 64, color: theme.hintColor),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Trash is empty',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.hintColor,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: notes.length,
+              itemBuilder: (context, index) {
+                final note = notes[index];
+                return _TrashNoteCard(
+                  note: note,
+                  onRestore: () => _showRestoreDialog(context, ref, note),
+                  onDelete: () =>
+                      _showPermanentDeleteDialog(context, ref, note),
+                );
+              },
+            );
+          },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text('Error: $err')),
+        ),
+      ),
+    );
+  }
+}
+
+class _TrashNoteCard extends StatelessWidget {
+  final Note note;
+  final VoidCallback onRestore;
+  final VoidCallback onDelete;
+
+  const _TrashNoteCard({
+    required this.note,
+    required this.onRestore,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              note.title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (note.content != null && note.content!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                note.content!,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.hintColor,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (note.updatedAt != null)
+                  Text(
+                    'Moved to trash ${DateFormat.MMMd().format(note.updatedAt!)}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.hintColor,
+                    ),
+                  ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(LucideIcons.rotateCcw),
+                  onPressed: onRestore,
+                  tooltip: 'Restore',
+                  visualDensity: VisualDensity.compact,
+                ),
+                IconButton(
+                  icon: Icon(
+                    LucideIcons.trash2,
+                    color: theme.colorScheme.error,
+                  ),
+                  onPressed: onDelete,
+                  tooltip: 'Delete Forever',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

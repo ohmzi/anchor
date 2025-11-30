@@ -6,7 +6,7 @@ part of 'notes_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$notesControllerHash() => r'12129768ae5939983d5ad737422a102f6c425331';
+String _$notesControllerHash() => r'f6422856b3956c1f3db9c19b4fca349f876b6c83';
 
 /// See also [NotesController].
 @ProviderFor(NotesController)
@@ -22,5 +22,21 @@ final notesControllerProvider =
     );
 
 typedef _$NotesController = AutoDisposeStreamNotifier<List<Note>>;
+String _$trashControllerHash() => r'bab1244e95ae3358ac5aba5bfaa843258f6987a3';
+
+/// See also [TrashController].
+@ProviderFor(TrashController)
+final trashControllerProvider =
+    AutoDisposeStreamNotifierProvider<TrashController, List<Note>>.internal(
+      TrashController.new,
+      name: r'trashControllerProvider',
+      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+          ? null
+          : _$trashControllerHash,
+      dependencies: null,
+      allTransitiveDependencies: null,
+    );
+
+typedef _$TrashController = AutoDisposeStreamNotifier<List<Note>>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

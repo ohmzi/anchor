@@ -8,7 +8,13 @@ part 'notes_controller.g.dart';
 class NotesController extends _$NotesController {
   @override
   Stream<List<Note>> build() {
+    // Trigger sync on first build
+    Future.microtask(() => sync());
     return ref.watch(notesRepositoryProvider).watchNotes();
+  }
+
+  Future<void> sync() async {
+    await ref.read(notesRepositoryProvider).sync();
   }
 
   Future<void> deleteNote(String id) async {
@@ -16,3 +22,18 @@ class NotesController extends _$NotesController {
   }
 }
 
+@riverpod
+class TrashController extends _$TrashController {
+  @override
+  Stream<List<Note>> build() {
+    return ref.watch(notesRepositoryProvider).watchTrashedNotes();
+  }
+
+  Future<void> restoreNote(String id) async {
+    await ref.read(notesRepositoryProvider).restoreNote(id);
+  }
+
+  Future<void> permanentDelete(String id) async {
+    await ref.read(notesRepositoryProvider).permanentDelete(id);
+  }
+}

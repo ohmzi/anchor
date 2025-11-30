@@ -76,6 +76,16 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('active'),
+  );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -110,6 +120,7 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
     isPinned,
     isArchived,
     color,
+    state,
     updatedAt,
     isSynced,
   ];
@@ -162,6 +173,12 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         color.isAcceptableOrUnknown(data['color']!, _colorMeta),
       );
     }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    }
     if (data.containsKey('updated_at')) {
       context.handle(
         _updatedAtMeta,
@@ -207,6 +224,10 @@ class $NotesTable extends Notes with TableInfo<$NotesTable, Note> {
         DriftSqlType.string,
         data['${effectivePrefix}color'],
       ),
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
@@ -231,6 +252,7 @@ class Note extends DataClass implements Insertable<Note> {
   final bool isPinned;
   final bool isArchived;
   final String? color;
+  final String state;
   final DateTime? updatedAt;
   final bool isSynced;
   const Note({
@@ -240,6 +262,7 @@ class Note extends DataClass implements Insertable<Note> {
     required this.isPinned,
     required this.isArchived,
     this.color,
+    required this.state,
     this.updatedAt,
     required this.isSynced,
   });
@@ -256,6 +279,7 @@ class Note extends DataClass implements Insertable<Note> {
     if (!nullToAbsent || color != null) {
       map['color'] = Variable<String>(color);
     }
+    map['state'] = Variable<String>(state);
     if (!nullToAbsent || updatedAt != null) {
       map['updated_at'] = Variable<DateTime>(updatedAt);
     }
@@ -275,6 +299,7 @@ class Note extends DataClass implements Insertable<Note> {
       color: color == null && nullToAbsent
           ? const Value.absent()
           : Value(color),
+      state: Value(state),
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(updatedAt),
@@ -294,6 +319,7 @@ class Note extends DataClass implements Insertable<Note> {
       isPinned: serializer.fromJson<bool>(json['isPinned']),
       isArchived: serializer.fromJson<bool>(json['isArchived']),
       color: serializer.fromJson<String?>(json['color']),
+      state: serializer.fromJson<String>(json['state']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
     );
@@ -308,6 +334,7 @@ class Note extends DataClass implements Insertable<Note> {
       'isPinned': serializer.toJson<bool>(isPinned),
       'isArchived': serializer.toJson<bool>(isArchived),
       'color': serializer.toJson<String?>(color),
+      'state': serializer.toJson<String>(state),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
       'isSynced': serializer.toJson<bool>(isSynced),
     };
@@ -320,6 +347,7 @@ class Note extends DataClass implements Insertable<Note> {
     bool? isPinned,
     bool? isArchived,
     Value<String?> color = const Value.absent(),
+    String? state,
     Value<DateTime?> updatedAt = const Value.absent(),
     bool? isSynced,
   }) => Note(
@@ -329,6 +357,7 @@ class Note extends DataClass implements Insertable<Note> {
     isPinned: isPinned ?? this.isPinned,
     isArchived: isArchived ?? this.isArchived,
     color: color.present ? color.value : this.color,
+    state: state ?? this.state,
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
     isSynced: isSynced ?? this.isSynced,
   );
@@ -342,6 +371,7 @@ class Note extends DataClass implements Insertable<Note> {
           ? data.isArchived.value
           : this.isArchived,
       color: data.color.present ? data.color.value : this.color,
+      state: data.state.present ? data.state.value : this.state,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
     );
@@ -356,6 +386,7 @@ class Note extends DataClass implements Insertable<Note> {
           ..write('isPinned: $isPinned, ')
           ..write('isArchived: $isArchived, ')
           ..write('color: $color, ')
+          ..write('state: $state, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isSynced: $isSynced')
           ..write(')'))
@@ -370,6 +401,7 @@ class Note extends DataClass implements Insertable<Note> {
     isPinned,
     isArchived,
     color,
+    state,
     updatedAt,
     isSynced,
   );
@@ -383,6 +415,7 @@ class Note extends DataClass implements Insertable<Note> {
           other.isPinned == this.isPinned &&
           other.isArchived == this.isArchived &&
           other.color == this.color &&
+          other.state == this.state &&
           other.updatedAt == this.updatedAt &&
           other.isSynced == this.isSynced);
 }
@@ -394,6 +427,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
   final Value<bool> isPinned;
   final Value<bool> isArchived;
   final Value<String?> color;
+  final Value<String> state;
   final Value<DateTime?> updatedAt;
   final Value<bool> isSynced;
   final Value<int> rowid;
@@ -404,6 +438,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.isPinned = const Value.absent(),
     this.isArchived = const Value.absent(),
     this.color = const Value.absent(),
+    this.state = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -415,6 +450,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     this.isPinned = const Value.absent(),
     this.isArchived = const Value.absent(),
     this.color = const Value.absent(),
+    this.state = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -427,6 +463,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Expression<bool>? isPinned,
     Expression<bool>? isArchived,
     Expression<String>? color,
+    Expression<String>? state,
     Expression<DateTime>? updatedAt,
     Expression<bool>? isSynced,
     Expression<int>? rowid,
@@ -438,6 +475,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
       if (isPinned != null) 'is_pinned': isPinned,
       if (isArchived != null) 'is_archived': isArchived,
       if (color != null) 'color': color,
+      if (state != null) 'state': state,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isSynced != null) 'is_synced': isSynced,
       if (rowid != null) 'rowid': rowid,
@@ -451,6 +489,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
     Value<bool>? isPinned,
     Value<bool>? isArchived,
     Value<String?>? color,
+    Value<String>? state,
     Value<DateTime?>? updatedAt,
     Value<bool>? isSynced,
     Value<int>? rowid,
@@ -462,6 +501,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
       isPinned: isPinned ?? this.isPinned,
       isArchived: isArchived ?? this.isArchived,
       color: color ?? this.color,
+      state: state ?? this.state,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,
       rowid: rowid ?? this.rowid,
@@ -489,6 +529,9 @@ class NotesCompanion extends UpdateCompanion<Note> {
     if (color.present) {
       map['color'] = Variable<String>(color.value);
     }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
@@ -510,6 +553,7 @@ class NotesCompanion extends UpdateCompanion<Note> {
           ..write('isPinned: $isPinned, ')
           ..write('isArchived: $isArchived, ')
           ..write('color: $color, ')
+          ..write('state: $state, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isSynced: $isSynced, ')
           ..write('rowid: $rowid')
@@ -537,6 +581,7 @@ typedef $$NotesTableCreateCompanionBuilder =
       Value<bool> isPinned,
       Value<bool> isArchived,
       Value<String?> color,
+      Value<String> state,
       Value<DateTime?> updatedAt,
       Value<bool> isSynced,
       Value<int> rowid,
@@ -549,6 +594,7 @@ typedef $$NotesTableUpdateCompanionBuilder =
       Value<bool> isPinned,
       Value<bool> isArchived,
       Value<String?> color,
+      Value<String> state,
       Value<DateTime?> updatedAt,
       Value<bool> isSynced,
       Value<int> rowid,
@@ -589,6 +635,11 @@ class $$NotesTableFilterComposer extends Composer<_$AppDatabase, $NotesTable> {
 
   ColumnFilters<String> get color => $composableBuilder(
     column: $table.color,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -642,6 +693,11 @@ class $$NotesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -681,6 +737,9 @@ class $$NotesTableAnnotationComposer
 
   GeneratedColumn<String> get color =>
       $composableBuilder(column: $table.color, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
@@ -723,6 +782,7 @@ class $$NotesTableTableManager
                 Value<bool> isPinned = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
                 Value<String?> color = const Value.absent(),
+                Value<String> state = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -733,6 +793,7 @@ class $$NotesTableTableManager
                 isPinned: isPinned,
                 isArchived: isArchived,
                 color: color,
+                state: state,
                 updatedAt: updatedAt,
                 isSynced: isSynced,
                 rowid: rowid,
@@ -745,6 +806,7 @@ class $$NotesTableTableManager
                 Value<bool> isPinned = const Value.absent(),
                 Value<bool> isArchived = const Value.absent(),
                 Value<String?> color = const Value.absent(),
+                Value<String> state = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -755,6 +817,7 @@ class $$NotesTableTableManager
                 isPinned: isPinned,
                 isArchived: isArchived,
                 color: color,
+                state: state,
                 updatedAt: updatedAt,
                 isSynced: isSynced,
                 rowid: rowid,

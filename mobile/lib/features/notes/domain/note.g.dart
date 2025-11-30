@@ -13,6 +13,9 @@ Note _$NoteFromJson(Map<String, dynamic> json) => Note(
   isPinned: json['isPinned'] as bool? ?? false,
   isArchived: json['isArchived'] as bool? ?? false,
   color: json['color'] as String?,
+  state:
+      $enumDecodeNullable(_$NoteStateEnumMap, json['state']) ??
+      NoteState.active,
   updatedAt: json['updatedAt'] == null
       ? null
       : DateTime.parse(json['updatedAt'] as String),
@@ -25,5 +28,12 @@ Map<String, dynamic> _$NoteToJson(Note instance) => <String, dynamic>{
   'isPinned': instance.isPinned,
   'isArchived': instance.isArchived,
   'color': instance.color,
+  'state': _$NoteStateEnumMap[instance.state]!,
   'updatedAt': instance.updatedAt?.toIso8601String(),
+};
+
+const _$NoteStateEnumMap = {
+  NoteState.active: 'active',
+  NoteState.trashed: 'trashed',
+  NoteState.deleted: 'deleted',
 };
