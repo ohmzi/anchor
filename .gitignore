@@ -1,0 +1,13 @@
+# Environment variables
+.env*
+
+# OS
+.DS_Store
+thumbs.db
+*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
