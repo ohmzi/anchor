@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'package:anchor/features/notes/domain/note.dart';
 import 'package:anchor/core/widgets/confirm_dialog.dart';
 import 'package:anchor/core/widgets/rich_text_editor.dart';
+import 'package:anchor/features/tags/presentation/widgets/tag_selector.dart';
 import '../data/repository/notes_repository.dart';
 
 class NoteEditScreen extends ConsumerStatefulWidget {
@@ -26,6 +27,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   bool _isEditing = false;
   Note? _existingNote;
   String? _initialContent;
+  List<String> _selectedTagIds = [];
 
   @override
   void initState() {
@@ -36,6 +38,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       _existingNote = widget.note;
       _titleController.text = widget.note!.title;
       _initialContent = widget.note!.content;
+      _selectedTagIds = List.from(widget.note!.tagIds);
       _isLoaded = true;
     } else if (widget.noteId != null) {
       // Fallback: fetch from repository if only ID is provided
@@ -63,6 +66,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         _existingNote = note;
         _titleController.text = note.title;
         _initialContent = note.content;
+        _selectedTagIds = List.from(note.tagIds);
         _isLoaded = true;
       });
     }
@@ -89,22 +93,38 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         id: const Uuid().v4(),
         title: title.isNotEmpty ? title : 'Untitled',
         content: content,
+        tagIds: _selectedTagIds,
         updatedAt: DateTime.now(),
         isSynced: false,
       );
       await repository.createNote(newNote);
     } else if (_existingNote != null) {
-      if (_existingNote!.title == title && _existingNote!.content == content) {
+      // Check if anything changed
+      final tagsChanged = !_listEquals(_existingNote!.tagIds, _selectedTagIds);
+      if (_existingNote!.title == title &&
+          _existingNote!.content == content &&
+          !tagsChanged) {
         return;
       }
 
       final updatedNote = _existingNote!.copyWith(
         title: title,
         content: content,
+        tagIds: _selectedTagIds,
         isSynced: false,
       );
       await repository.updateNote(updatedNote);
     }
+  }
+
+  bool _listEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    final sortedA = List<String>.from(a)..sort();
+    final sortedB = List<String>.from(b)..sort();
+    for (int i = 0; i < sortedA.length; i++) {
+      if (sortedA[i] != sortedB[i]) return false;
+    }
+    return true;
   }
 
   Future<void> _deleteNote() async {
@@ -211,6 +231,16 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                     textCapitalization: TextCapitalization.sentences,
                   ),
                 ),
+                if (_isEditing || _selectedTagIds.isNotEmpty)
+                  TagSelector(
+                    selectedTagIds: _selectedTagIds,
+                    readOnly: !_isEditing,
+                    onTagsChanged: (tagIds) {
+                      setState(() {
+                        _selectedTagIds = tagIds;
+                      });
+                    },
+                  ),
                 Expanded(
                   child: _isLoaded
                       ? RichTextEditor(

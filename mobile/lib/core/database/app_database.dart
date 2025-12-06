@@ -6,15 +6,29 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../features/notes/data/local/notes_table.dart';
+import '../../features/tags/data/local/tags_table.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(tables: [Notes])
+@DriftDatabase(tables: [Notes, Tags, NoteTags])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (Migrator m) async {
+      await m.createAll();
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      if (from < 4) {
+        await m.createTable(tags);
+        await m.createTable(noteTags);
+      }
+    },
+  );
 }
 
 LazyDatabase _openConnection() {

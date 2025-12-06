@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -6,6 +8,7 @@ import 'package:drift/drift.dart' as drift;
 import '../../../../core/database/app_database.dart';
 import '../../../../core/network/dio_provider.dart';
 import '../../domain/note.dart' as domain;
+import '../../../tags/data/repository/tags_repository.dart';
 
 part 'notes_repository.g.dart';
 
@@ -16,47 +19,131 @@ NotesRepository notesRepository(Ref ref) {
   final db = ref.watch(appDatabaseProvider);
   final dio = ref.watch(dioProvider);
   const storage = FlutterSecureStorage();
-  return NotesRepository(db, dio, storage);
+  final tagsRepo = ref.watch(tagsRepositoryProvider);
+  return NotesRepository(db, dio, storage, tagsRepo);
 }
 
 class NotesRepository {
   final AppDatabase _db;
   final Dio _dio;
   final FlutterSecureStorage _storage;
+  final TagsRepository _tagsRepo;
 
-  NotesRepository(this._db, this._dio, this._storage);
+  NotesRepository(this._db, this._dio, this._storage, this._tagsRepo);
 
   // Watch only active notes
-  Stream<List<domain.Note>> watchNotes() {
-    final query = _db.select(_db.notes)
-      ..where((tbl) => tbl.state.equals('active'))
-      ..orderBy([
-        (t) => drift.OrderingTerm(
-          expression: t.isPinned,
-          mode: drift.OrderingMode.desc,
+  // Uses a left outer join to fetch notes and their tags in a single query
+  Stream<List<domain.Note>> watchNotes({String? tagId}) {
+    final query = _db.select(_db.notes).join([
+      drift.leftOuterJoin(
+        _db.noteTags,
+        _db.noteTags.noteId.equalsExp(_db.notes.id),
+      ),
+    ]);
+
+    // Apply filters
+    query.where(_db.notes.state.equals('active'));
+
+    if (tagId != null) {
+      // If filtering by tag, we first need to find note IDs that have this tag
+      // Then fetch those notes with ALL their tags
+      // This is slightly complex to do in one pure join if we want ALL tags for the filtered notes
+      // Simpler approach: Filter the join, but this limits the tags we get back to just the filtered one
+      // Correct approach with Drift: Use subquery or separate filter logic
+
+      // For now, to keep it simple and fast:
+      // 1. Join is already set up
+      // 2. Add where clause on the joined table
+      // 3. BUT this will filter out other tags for the same note in the result set if we are not careful
+      // The standard pattern for "Filter by Tag but get all Tags" is:
+      // Filter on Note ID where Note ID in (SELECT noteId FROM noteTags WHERE tagId = ?)
+
+      query.where(
+        _db.notes.id.isInQuery(
+          _db.selectOnly(_db.noteTags)
+            ..addColumns([_db.noteTags.noteId])
+            ..where(_db.noteTags.tagId.equals(tagId)),
         ),
-        (t) => drift.OrderingTerm(
-          expression: t.updatedAt,
-          mode: drift.OrderingMode.desc,
-        ),
-      ]);
+      );
+    }
+
+    query.orderBy([
+      drift.OrderingTerm(
+        expression: _db.notes.isPinned,
+        mode: drift.OrderingMode.desc,
+      ),
+      drift.OrderingTerm(
+        expression: _db.notes.updatedAt,
+        mode: drift.OrderingMode.desc,
+      ),
+    ]);
+
+    // Watch the query - emits when notes or noteTags change
     return query.watch().map((rows) {
-      return rows.map((row) => _mapToDomain(row)).toList();
+      // Group rows by note ID to handle one-to-many relationship
+      final noteMap = <String, domain.Note>{};
+
+      for (final row in rows) {
+        final note = row.readTable(_db.notes);
+        final tagId = row.readTableOrNull(_db.noteTags)?.tagId;
+
+        if (!noteMap.containsKey(note.id)) {
+          noteMap[note.id] = _mapToDomain(note, []);
+        }
+
+        if (tagId != null) {
+          final currentNote = noteMap[note.id]!;
+          if (!currentNote.tagIds.contains(tagId)) {
+            noteMap[note.id] = currentNote.copyWith(
+              tagIds: [...currentNote.tagIds, tagId],
+            );
+          }
+        }
+      }
+
+      return noteMap.values.toList();
     });
   }
 
   // Watch trashed notes for Trash screen
   Stream<List<domain.Note>> watchTrashedNotes() {
-    final query = _db.select(_db.notes)
-      ..where((tbl) => tbl.state.equals('trashed'))
-      ..orderBy([
-        (t) => drift.OrderingTerm(
-          expression: t.updatedAt,
-          mode: drift.OrderingMode.desc,
-        ),
-      ]);
+    final query =
+        _db.select(_db.notes).join([
+            drift.leftOuterJoin(
+              _db.noteTags,
+              _db.noteTags.noteId.equalsExp(_db.notes.id),
+            ),
+          ])
+          ..where(_db.notes.state.equals('trashed'))
+          ..orderBy([
+            drift.OrderingTerm(
+              expression: _db.notes.updatedAt,
+              mode: drift.OrderingMode.desc,
+            ),
+          ]);
+
     return query.watch().map((rows) {
-      return rows.map((row) => _mapToDomain(row)).toList();
+      final noteMap = <String, domain.Note>{};
+
+      for (final row in rows) {
+        final note = row.readTable(_db.notes);
+        final tagId = row.readTableOrNull(_db.noteTags)?.tagId;
+
+        if (!noteMap.containsKey(note.id)) {
+          noteMap[note.id] = _mapToDomain(note, []);
+        }
+
+        if (tagId != null) {
+          final currentNote = noteMap[note.id]!;
+          if (!currentNote.tagIds.contains(tagId)) {
+            noteMap[note.id] = currentNote.copyWith(
+              tagIds: [...currentNote.tagIds, tagId],
+            );
+          }
+        }
+      }
+
+      return noteMap.values.toList();
     });
   }
 
@@ -64,7 +151,9 @@ class NotesRepository {
     final row = await (_db.select(
       _db.notes,
     )..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
-    return row != null ? _mapToDomain(row) : null;
+    if (row == null) return null;
+    final tagIds = await _tagsRepo.getTagIdsForNote(id);
+    return _mapToDomain(row, tagIds);
   }
 
   Future<void> createNote(domain.Note note) async {
@@ -72,26 +161,36 @@ class NotesRepository {
       updatedAt: DateTime.now(),
       state: domain.NoteState.active,
     );
+
+    // Save locally with generated ID
     await _db
         .into(_db.notes)
         .insert(
           _mapToData(noteWithTimestamp, isSynced: false),
           mode: drift.InsertMode.insertOrReplace,
         );
-    _syncPushSingle(noteWithTimestamp, isNew: true);
+    await _tagsRepo.setTagsForNote(note.id, note.tagIds);
+
+    // Trigger sync in background
+    sync();
   }
 
   Future<void> updateNote(domain.Note note) async {
     final noteWithTimestamp = note.copyWith(updatedAt: DateTime.now());
+
     await _db
         .update(_db.notes)
         .replace(_mapToData(noteWithTimestamp, isSynced: false));
-    _syncPushSingle(noteWithTimestamp, isNew: false);
+    await _tagsRepo.setTagsForNote(note.id, note.tagIds);
+
+    // Trigger sync in background
+    sync();
   }
 
   // Soft delete - moves note to trash
   Future<void> deleteNote(String id) async {
     final now = DateTime.now();
+
     await (_db.update(_db.notes)..where((tbl) => tbl.id.equals(id))).write(
       NotesCompanion(
         state: const drift.Value('trashed'),
@@ -100,20 +199,13 @@ class NotesRepository {
       ),
     );
 
-    // Sync delete to server
-    try {
-      await _dio.delete('/api/notes/$id');
-      await (_db.update(_db.notes)..where((tbl) => tbl.id.equals(id))).write(
-        const NotesCompanion(isSynced: drift.Value(true)),
-      );
-    } catch (e) {
-      // Will be synced later
-    }
+    sync();
   }
 
   // Restore from trash
   Future<void> restoreNote(String id) async {
     final now = DateTime.now();
+
     await (_db.update(_db.notes)..where((tbl) => tbl.id.equals(id))).write(
       NotesCompanion(
         state: const drift.Value('active'),
@@ -122,15 +214,7 @@ class NotesRepository {
       ),
     );
 
-    // Sync restore to server
-    try {
-      await _dio.patch('/api/notes/$id/restore');
-      await (_db.update(_db.notes)..where((tbl) => tbl.id.equals(id))).write(
-        const NotesCompanion(isSynced: drift.Value(true)),
-      );
-    } catch (e) {
-      // Will be synced later
-    }
+    sync();
   }
 
   // Permanent delete - sets state to deleted (tombstone)
@@ -145,14 +229,12 @@ class NotesRepository {
       ),
     );
 
-    // Sync permanent delete to server
-    try {
-      await _dio.delete('/api/notes/$id/permanent');
-      // After server confirms, remove the tombstone locally
-      await (_db.delete(_db.notes)..where((tbl) => tbl.id.equals(id))).go();
-    } catch (e) {
-      // Will be synced later, tombstone remains locally
-    }
+    // Remove tag associations immediately for local UI
+    await (_db.delete(
+      _db.noteTags,
+    )..where((tbl) => tbl.noteId.equals(id))).go();
+
+    sync();
   }
 
   // Bulletproof bi-directional sync
@@ -166,9 +248,11 @@ class NotesRepository {
         _db.notes,
       )..where((tbl) => tbl.isSynced.equals(false))).get();
 
-      final localChanges = unsyncedRows.map((row) {
-        final note = _mapToDomain(row);
-        return {
+      final localChanges = <Map<String, dynamic>>[];
+      for (final row in unsyncedRows) {
+        final tagIds = await _tagsRepo.getTagIdsForNote(row.id);
+        final note = _mapToDomain(row, tagIds);
+        localChanges.add({
           'id': note.id,
           'title': note.title,
           'content': note.content,
@@ -176,9 +260,10 @@ class NotesRepository {
           'isArchived': note.isArchived,
           'color': note.color,
           'state': note.state.name,
+          'tagIds': note.tagIds,
           'updatedAt': note.updatedAt?.toIso8601String(),
-        };
-      }).toList();
+        });
+      }
 
       // 3. Send sync request to server
       final response = await _dio.post(
@@ -198,6 +283,9 @@ class NotesRepository {
           // If server note is deleted (tombstone), remove it locally
           if (serverNote.isDeleted) {
             await (_db.delete(
+              _db.noteTags,
+            )..where((tbl) => tbl.noteId.equals(serverNote.id))).go();
+            await (_db.delete(
               _db.notes,
             )..where((tbl) => tbl.id.equals(serverNote.id))).go();
             continue;
@@ -215,6 +303,7 @@ class NotesRepository {
                   _mapToData(serverNote, isSynced: true),
                   mode: drift.InsertMode.insertOrReplace,
                 );
+            await _tagsRepo.setTagsForNote(serverNote.id, serverNote.tagIds);
           } else {
             // Note exists - compare timestamps
             final serverUpdatedAt = serverNote.updatedAt;
@@ -239,6 +328,7 @@ class NotesRepository {
                   isSynced: const drift.Value(true),
                 ),
               );
+              await _tagsRepo.setTagsForNote(serverNote.id, serverNote.tagIds);
             }
           }
         }
@@ -252,6 +342,9 @@ class NotesRepository {
             _db.notes,
           )..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
           if (note != null && note.state == 'deleted') {
+            await (_db.delete(
+              _db.noteTags,
+            )..where((tbl) => tbl.noteId.equals(id))).go();
             await (_db.delete(
               _db.notes,
             )..where((tbl) => tbl.id.equals(id))).go();
@@ -269,52 +362,16 @@ class NotesRepository {
     }
   }
 
-  // Push a single note to server (for immediate sync on create/update)
-  Future<void> _syncPushSingle(domain.Note note, {required bool isNew}) async {
-    try {
-      final data = note.toJson();
-      // Remove fields that shouldn't be sent to server
-      data.remove('id');
-      data.remove('state'); // Managed by server
-      data.remove('updatedAt'); // Managed by Prisma @updatedAt
-
-      if (isNew) {
-        // New note - create directly on server
-        final response = await _dio.post('/api/notes', data: data);
-        final serverNote = domain.Note.fromJson(response.data);
-
-        // Update local DB with server ID and data
-        await _db.transaction(() async {
-          await (_db.delete(
-            _db.notes,
-          )..where((tbl) => tbl.id.equals(note.id))).go();
-          await _db
-              .into(_db.notes)
-              .insert(
-                _mapToData(serverNote, isSynced: true),
-                mode: drift.InsertMode.insertOrReplace,
-              );
-        });
-      } else {
-        // Existing note - update on server
-        await _dio.patch('/api/notes/${note.id}', data: data);
-        await (_db.update(_db.notes)..where((tbl) => tbl.id.equals(note.id)))
-            .write(const NotesCompanion(isSynced: drift.Value(true)));
-      }
-    } catch (e) {
-      // Will be synced in next full sync
-    }
-  }
-
   // Clear all local data
   Future<void> clearAll() async {
     // Clear all notes from DB
     await _db.delete(_db.notes).go();
+    await _db.delete(_db.noteTags).go();
     // Clear sync timestamp
     await _storage.delete(key: _lastSyncKey);
   }
 
-  domain.Note _mapToDomain(Note row) {
+  domain.Note _mapToDomain(Note row, List<String> tagIds) {
     return domain.Note(
       id: row.id,
       title: row.title,
@@ -324,6 +381,7 @@ class NotesRepository {
       color: row.color,
       state: domain.NoteState.fromString(row.state),
       updatedAt: row.updatedAt,
+      tagIds: tagIds,
       isSynced: row.isSynced,
     );
   }

@@ -32,8 +32,12 @@ export class NotesController {
   }
 
   @Get()
-  findAll(@Request() req, @Query('search') search?: string) {
-    return this.notesService.findAll(req.user.userId, search);
+  findAll(
+    @Request() req,
+    @Query('search') search?: string,
+    @Query('tagId') tagId?: string,
+  ) {
+    return this.notesService.findAll(req.user.userId, search, tagId);
   }
 
   @Get('trash')

@@ -1,4 +1,10 @@
-import { IsBoolean, IsOptional, IsString, IsNotEmpty } from 'class-validator';
+import {
+  IsBoolean,
+  IsOptional,
+  IsString,
+  IsNotEmpty,
+  IsArray,
+} from 'class-validator';
 
 export class CreateNoteDto {
   @IsString()
@@ -20,4 +26,9 @@ export class CreateNoteDto {
   @IsString()
   @IsOptional()
   color?: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tagIds?: string[];
 }

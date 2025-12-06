@@ -42,6 +42,11 @@ export class SyncNoteDto {
   @IsOptional()
   state?: SyncNoteState;
 
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  tagIds?: string[];
+
   @IsDateString()
   updatedAt: string;
 }

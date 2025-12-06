@@ -3,6 +3,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../features/notes/data/repository/notes_repository.dart';
+import '../../features/tags/data/repository/tags_repository.dart';
 
 part 'connectivity_provider.g.dart';
 
@@ -55,7 +56,12 @@ class SyncManager extends _$SyncManager {
     if (state) return; // Already syncing
     state = true;
     try {
+      // Sync tags FIRST to ensure tag IDs are resolved before notes sync
+      await ref.read(tagsRepositoryProvider).sync();
+      // Then sync notes
       await ref.read(notesRepositoryProvider).sync();
+    } catch (e) {
+      // Sync failed, will retry on next connectivity change
     } finally {
       state = false;
     }

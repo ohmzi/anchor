@@ -19,6 +19,9 @@ Note _$NoteFromJson(Map<String, dynamic> json) => Note(
   updatedAt: json['updatedAt'] == null
       ? null
       : DateTime.parse(json['updatedAt'] as String),
+  tagIds:
+      (json['tagIds'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$NoteToJson(Note instance) => <String, dynamic>{
@@ -30,6 +33,7 @@ Map<String, dynamic> _$NoteToJson(Note instance) => <String, dynamic>{
   'color': instance.color,
   'state': _$NoteStateEnumMap[instance.state]!,
   'updatedAt': instance.updatedAt?.toIso8601String(),
+  'tagIds': instance.tagIds,
 };
 
 const _$NoteStateEnumMap = {

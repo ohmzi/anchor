@@ -5,39 +5,74 @@ import { UpdateNoteDto } from './dto/update-note.dto';
 import { SyncNotesDto } from './dto/sync-notes.dto';
 import { NoteState } from 'src/generated/prisma/enums';
 
+// Helper to transform note with tags to include tagIds array
+function transformNote(note: any) {
+  if (!note) return note;
+  const { tags, ...rest } = note;
+  return {
+    ...rest,
+    tagIds: tags?.map((t: any) => t.id) || [],
+  };
+}
+
 @Injectable()
 export class NotesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async create(userId: string, createNoteDto: CreateNoteDto) {
-    return this.prisma.note.create({
+    const { tagIds, ...noteData } = createNoteDto;
+
+    const note = await this.prisma.note.create({
       data: {
-        ...createNoteDto,
+        ...noteData,
         state: NoteState.active,
         userId,
+        tags: tagIds?.length
+          ? {
+            connect: tagIds.map((id) => ({ id })),
+          }
+          : undefined,
+      },
+      include: {
+        tags: true,
       },
     });
+
+    return transformNote(note);
   }
 
-  async findAll(userId: string, search?: string) {
-    return this.prisma.note.findMany({
+  async findAll(userId: string, search?: string, tagId?: string) {
+    const notes = await this.prisma.note.findMany({
       where: {
         userId,
         state: NoteState.active,
+        ...(tagId && {
+          tags: {
+            some: { id: tagId },
+          },
+        }),
         OR: search
           ? [
-              { title: { contains: search, mode: 'insensitive' } },
-              { content: { contains: search, mode: 'insensitive' } },
-            ]
+            { title: { contains: search, mode: 'insensitive' } },
+            { content: { contains: search, mode: 'insensitive' } },
+          ]
           : undefined,
       },
       orderBy: { updatedAt: 'desc' },
+      include: {
+        tags: true,
+      },
     });
+
+    return notes.map(transformNote);
   }
 
   async findOne(userId: string, id: string, includeAllStates = false) {
     const note = await this.prisma.note.findUnique({
       where: { id },
+      include: {
+        tags: true,
+      },
     });
 
     if (!note || note.userId !== userId) {
@@ -48,62 +83,97 @@ export class NotesService {
       throw new NotFoundException('Note not found');
     }
 
-    return note;
+    return transformNote(note);
   }
 
   async update(userId: string, id: string, updateNoteDto: UpdateNoteDto) {
     // Ensure note exists and belongs to user (include all states for sync scenarios)
     await this.findOne(userId, id, true);
 
-    return this.prisma.note.update({
+    const { tagIds, ...noteData } = updateNoteDto;
+
+    const note = await this.prisma.note.update({
       where: { id },
-      data: updateNoteDto,
+      data: {
+        ...noteData,
+        // Use 'set' to replace all tags at once (implicit many-to-many)
+        ...(tagIds !== undefined && {
+          tags: {
+            set: tagIds.map((tagId) => ({ id: tagId })),
+          },
+        }),
+      },
+      include: {
+        tags: true,
+      },
     });
+
+    return transformNote(note);
   }
 
   // Soft delete - moves note to trash
   async remove(userId: string, id: string) {
     await this.findOne(userId, id, true);
 
-    return this.prisma.note.update({
+    const note = await this.prisma.note.update({
       where: { id },
       data: { state: NoteState.trashed },
+      include: {
+        tags: true,
+      },
     });
+
+    return transformNote(note);
   }
 
   // Restore from trash
   async restore(userId: string, id: string) {
-    const note = await this.findOne(userId, id, true);
+    const existingNote = await this.findOne(userId, id, true);
 
-    if (note.state !== NoteState.trashed) {
+    if (existingNote.state !== NoteState.trashed) {
       throw new NotFoundException('Note is not in trash');
     }
 
-    return this.prisma.note.update({
+    const note = await this.prisma.note.update({
       where: { id },
       data: { state: NoteState.active },
+      include: {
+        tags: true,
+      },
     });
+
+    return transformNote(note);
   }
 
   // Permanent delete - sets state to deleted (tombstone)
   async permanentDelete(userId: string, id: string) {
     await this.findOne(userId, id, true);
 
-    return this.prisma.note.update({
+    const note = await this.prisma.note.update({
       where: { id },
       data: { state: NoteState.deleted },
+      include: {
+        tags: true,
+      },
     });
+
+    return transformNote(note);
   }
 
   // Get trashed notes
   async findTrashed(userId: string) {
-    return this.prisma.note.findMany({
+    const notes = await this.prisma.note.findMany({
       where: {
         userId,
         state: NoteState.trashed,
       },
       orderBy: { updatedAt: 'desc' },
+      include: {
+        tags: true,
+      },
     });
+
+    return notes.map(transformNote);
   }
 
   // Purge tombstones older than retention period (30 days)
@@ -145,6 +215,11 @@ export class NotesService {
             color: change.color,
             state: (change.state as NoteState) ?? NoteState.active,
             userId,
+            tags: change.tagIds?.length
+              ? {
+                connect: change.tagIds.map((id) => ({ id })),
+              }
+              : undefined,
           },
         });
         processedIds.push(change.id);
@@ -164,6 +239,12 @@ export class NotesService {
               isArchived: change.isArchived,
               color: change.color,
               state: (change.state as NoteState) ?? existingNote.state,
+              // Update tags if provided
+              ...(change.tagIds !== undefined && {
+                tags: {
+                  set: change.tagIds.map((id) => ({ id })),
+                },
+              }),
             },
           });
           conflicts.push({ noteId: change.id, resolution: 'client' });
@@ -175,13 +256,18 @@ export class NotesService {
     }
 
     // Get all notes modified after lastSyncedAt (including trashed and deleted/tombstones)
-    const serverChanges = await this.prisma.note.findMany({
+    const serverNotes = await this.prisma.note.findMany({
       where: {
         userId,
         updatedAt: lastSyncedAt ? { gt: new Date(lastSyncedAt) } : undefined,
       },
       orderBy: { updatedAt: 'desc' },
+      include: {
+        tags: true,
+      },
     });
+
+    const serverChanges = serverNotes.map(transformNote);
 
     return {
       serverChanges,

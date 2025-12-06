@@ -25,7 +25,8 @@ class Note {
   final String? color;
   final NoteState state;
   final DateTime? updatedAt;
-  
+  final List<String> tagIds;
+
   // Local only
   @JsonKey(includeFromJson: false, includeToJson: false)
   final bool isSynced;
@@ -39,6 +40,7 @@ class Note {
     this.color,
     this.state = NoteState.active,
     this.updatedAt,
+    this.tagIds = const [],
     this.isSynced = true,
   });
 
@@ -58,6 +60,7 @@ class Note {
     String? color,
     NoteState? state,
     DateTime? updatedAt,
+    List<String>? tagIds,
     bool? isSynced,
   }) {
     return Note(
@@ -69,6 +72,7 @@ class Note {
       color: color ?? this.color,
       state: state ?? this.state,
       updatedAt: updatedAt ?? this.updatedAt,
+      tagIds: tagIds ?? this.tagIds,
       isSynced: isSynced ?? this.isSynced,
     );
   }
