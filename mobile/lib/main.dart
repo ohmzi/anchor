@@ -24,7 +24,7 @@ class AnchorApp extends ConsumerWidget {
     ref.watch(syncManagerProvider);
 
     return MaterialApp.router(
-      title: 'Anchor',
+      title: 'Anchor Notes',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
