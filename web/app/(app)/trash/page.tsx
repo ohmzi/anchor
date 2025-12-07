@@ -78,11 +78,13 @@ export default function TrashPage() {
           </div>
         ) : filteredNotes.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-center">
-            <Trash2 className="h-16 w-16 text-muted-foreground/50 mb-4" />
-            <h3 className="text-xl font-medium text-muted-foreground">
+            <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+              <Trash2 className="h-10 w-10 text-muted-foreground/50" />
+            </div>
+            <h3 className="text-xl font-medium text-foreground">
               Trash is empty
             </h3>
-            <p className="text-sm text-muted-foreground/70 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Deleted notes will appear here
             </p>
           </div>
@@ -123,10 +125,12 @@ function TrashNoteCard({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   return (
-    <Card className="border-0 shadow-sm">
+    <Card className="border border-border/40 shadow-sm hover:shadow-md transition-all duration-200 hover:border-border">
       <CardContent className="p-4 flex items-center gap-4">
         <div className="flex-1 min-w-0">
-          <h3 className="font-medium truncate">{note.title || "Untitled"}</h3>
+          <h3 className="font-semibold truncate text-foreground/90">
+            {note.title || "Untitled"}
+          </h3>
           <p className="text-sm text-muted-foreground">
             Deleted {format(new Date(note.updatedAt), "MMM d, yyyy")}
           </p>
@@ -137,33 +141,35 @@ function TrashNoteCard({
             size="sm"
             onClick={onRestore}
             disabled={isRestoring}
-            className="gap-2"
+            className="gap-2 hover:bg-accent/10 hover:text-accent"
           >
             <RotateCcw className="h-4 w-4" />
-            Restore
+            <span className="hidden sm:inline">Restore</span>
           </Button>
           <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                  <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                  </div>
                   Delete permanently?
                 </DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="pt-2">
                   This action cannot be undone. This note will be permanently
                   deleted and cannot be recovered.
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter>
+              <DialogFooter className="gap-2 sm:gap-0">
                 <Button
                   variant="ghost"
                   onClick={() => setDeleteDialogOpen(false)}
@@ -181,7 +187,7 @@ function TrashNoteCard({
                   {isDeleting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    "Delete"
+                    "Delete Forever"
                   )}
                 </Button>
               </DialogFooter>

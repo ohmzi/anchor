@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Menu, Search, X, Plus } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Menu, Search, X, Command } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Sidebar } from "./sidebar";
-import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface HeaderProps {
   searchQuery: string;
@@ -15,16 +14,53 @@ interface HeaderProps {
 
 export function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isMac, setIsMac] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setIsMac(navigator.userAgent.toLowerCase().includes("mac"));
+  }, []);
+
+  // Keyboard shortcut: Cmd+K or Ctrl+K to focus search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      // Escape to blur search
+      if (e.key === "Escape" && isSearchFocused) {
+        searchInputRef.current?.blur();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isSearchFocused]);
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-background/80 backdrop-blur-md px-4 lg:px-6">
+    <header
+      className={cn(
+        "sticky top-0 z-40",
+        "flex h-16 items-center gap-3",
+        "bg-background/60 backdrop-blur-2xl",
+        "border-b border-border/30",
+        "px-4 lg:px-6",
+        "transition-all duration-300"
+      )}
+    >
       {/* Mobile menu */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetTrigger asChild>
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden"
+            className={cn(
+              "lg:hidden h-10 w-10 rounded-xl",
+              "hover:bg-accent/80",
+              "transition-all duration-200"
+            )}
             aria-label="Open menu"
           >
             <Menu className="h-5 w-5" />
@@ -37,37 +73,90 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
       </Sheet>
 
       {/* Search */}
-      <div className="flex-1 max-w-xl">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Search your thoughts..."
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 pr-10 h-10 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-accent"
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-              onClick={() => onSearchChange("")}
-            >
-              <X className="h-3 w-3" />
-            </Button>
-          )}
+      <div className="flex-1 flex justify-center">
+        <div className="relative w-full max-w-xl">
+          <div
+            className={cn(
+              "relative flex items-center",
+              "rounded-md",
+              "bg-muted/50",
+              "border border-border/40",
+              "transition-colors duration-200",
+              isSearchFocused && [
+                "bg-card",
+                "border-border",
+              ]
+            )}
+          >
+            <Search
+              className={cn(
+                "absolute left-4 h-4 w-4 pointer-events-none",
+                "transition-colors duration-200",
+                isSearchFocused ? "text-accent" : "text-muted-foreground"
+              )}
+            />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search notes..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              className={cn(
+                "w-full h-11 pl-11 pr-24",
+                "bg-transparent",
+                "rounded-md",
+                "text-sm text-foreground",
+                "placeholder:text-muted-foreground/50"
+              )}
+            />
+
+            {/* Clear button or keyboard shortcut */}
+            <div className="absolute right-3 flex items-center gap-2">
+              {searchQuery ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 rounded-md hover:bg-accent/50"
+                  onClick={() => {
+                    onSearchChange("");
+                    searchInputRef.current?.focus();
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => searchInputRef.current?.focus()}
+                  className={cn(
+                    "hidden sm:flex items-center gap-1",
+                    "px-2 py-1 rounded-md",
+                    "bg-muted/60 text-muted-foreground/60",
+                    "text-xs font-medium",
+                    "hover:bg-muted hover:text-muted-foreground",
+                    "transition-all duration-200",
+                    isSearchFocused && "opacity-0 pointer-events-none"
+                  )}
+                >
+                  {isMac ? (
+                    <>
+                      <Command className="h-3 w-3" />
+                      <span>K</span>
+                    </>
+                  ) : (
+                    <span>Ctrl+K</span>
+                  )}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* New Note Button */}
-      <Button asChild className="gap-2 bg-accent hover:bg-accent/90 text-accent-foreground">
-        <Link href="/notes/new">
-          <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">New Note</span>
-        </Link>
-      </Button>
+      {/* Spacer for balance on mobile */}
+      <div className="w-10 lg:hidden" />
     </header>
   );
 }
-

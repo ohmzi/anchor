@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
+import Masonry from "react-masonry-css";
 import { Sparkles, Search, Loader2 } from "lucide-react";
 import { getNotes } from "@/lib/api/notes";
 import { getTags } from "@/lib/api/tags";
@@ -12,6 +13,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import Link from "next/link";
+
+const masonryBreakpoints = {
+  default: 4,
+  1536: 4,
+  1280: 3,
+  1024: 3,
+  768: 2,
+  640: 1,
+};
 
 export default function NotesPage() {
   const searchParams = useSearchParams();
@@ -53,10 +63,10 @@ export default function NotesPage() {
     <div className="min-h-screen flex flex-col">
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
-      <div className="flex-1 p-4 lg:p-6">
+      <div className="flex-1 p-4 lg:p-8">
         {/* Tag filter indicator */}
         {selectedTag && (
-          <div className="mb-4">
+          <div className="mb-6 max-w-2xl mx-auto">
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted/50">
               <span className="text-sm text-muted-foreground">Filtering by</span>
               <Badge
@@ -77,7 +87,7 @@ export default function NotesPage() {
                 className="h-5 w-5"
                 asChild
               >
-                <Link href="/">
+                <Link href="/notes">
                   <X className="h-3 w-3" />
                 </Link>
               </Button>
@@ -93,7 +103,9 @@ export default function NotesPage() {
           <div className="flex flex-col items-center justify-center h-64 text-center">
             {searchQuery ? (
               <>
-                <Search className="h-16 w-16 text-muted-foreground/50 mb-4" />
+                <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                  <Search className="h-10 w-10 text-muted-foreground/50" />
+                </div>
                 <h3 className="text-xl font-medium text-muted-foreground">
                   No matching notes found
                 </h3>
@@ -103,46 +115,61 @@ export default function NotesPage() {
               </>
             ) : (
               <>
-                <Sparkles className="h-16 w-16 text-muted-foreground/50 mb-4" />
-                <h3 className="text-xl font-medium text-muted-foreground">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center mb-4">
+                  <Sparkles className="h-10 w-10 text-accent/70" />
+                </div>
+                <h3 className="text-xl font-medium text-foreground">
                   Capture your ideas here
                 </h3>
-                <p className="text-sm text-muted-foreground/70 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   Create your first note to get started
                 </p>
               </>
             )}
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-8">
             {/* Pinned Notes */}
             {pinnedNotes.length > 0 && (
-              <div>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+              <section>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2 px-1">
                   <span>Pinned</span>
+                  <span className="text-muted-foreground/50">({pinnedNotes.length})</span>
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {pinnedNotes.map((note) => (
-                    <NoteCard key={note.id} note={note} />
+                <Masonry
+                  breakpointCols={masonryBreakpoints}
+                  className="masonry-grid"
+                  columnClassName="masonry-grid-column"
+                >
+                  {pinnedNotes.map((note, index) => (
+                    <NoteCard key={note.id} note={note} index={index} />
                   ))}
-                </div>
-              </div>
+                </Masonry>
+              </section>
             )}
 
             {/* Other Notes */}
             {unpinnedNotes.length > 0 && (
-              <div>
+              <section>
                 {pinnedNotes.length > 0 && (
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4 px-1">
                     Others
                   </h2>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {unpinnedNotes.map((note) => (
-                    <NoteCard key={note.id} note={note} />
+                <Masonry
+                  breakpointCols={masonryBreakpoints}
+                  className="masonry-grid"
+                  columnClassName="masonry-grid-column"
+                >
+                  {unpinnedNotes.map((note, index) => (
+                    <NoteCard
+                      key={note.id}
+                      note={note}
+                      index={pinnedNotes.length + index}
+                    />
                   ))}
-                </div>
-              </div>
+                </Masonry>
+              </section>
             )}
           </div>
         )}
