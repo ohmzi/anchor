@@ -58,7 +58,7 @@ export class NotesService {
           ]
           : undefined,
       },
-      orderBy: { updatedAt: 'desc' },
+      orderBy: [{ isPinned: 'desc' }, { updatedAt: 'desc' }],
       include: {
         tags: true,
       },

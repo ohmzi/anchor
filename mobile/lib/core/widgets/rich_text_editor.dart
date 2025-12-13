@@ -127,35 +127,33 @@ class RichTextEditorState extends State<RichTextEditor> {
 
     try {
       final json = jsonDecode(content);
-      if (json is List) {
-        final document = Document.fromJson(json);
+      // Canonical Quill storage format: { "ops": [...] }
+      if (json is Map && json['ops'] is List) {
+        final document = Document.fromJson(json['ops'] as List);
         return QuillController(
           document: document,
           selection: const TextSelection.collapsed(offset: 0),
         );
       }
     } catch (_) {
-      // If not valid JSON, treat as plain text
+      // Invalid JSON -> strict mode: fall through to empty document
     }
 
-    // Fallback: treat content as plain text
-    final document = Document()..insert(0, content);
-    return QuillController(
-      document: document,
-      selection: const TextSelection.collapsed(offset: 0),
-    );
+    // Strict mode: only recommended Quill format is accepted.
+    return QuillController.basic();
   }
 
   void _onTextChanged() {
     if (widget.onChanged != null) {
-      final json = jsonEncode(_controller.document.toDelta().toJson());
-      widget.onChanged!(json);
+      final ops = _controller.document.toDelta().toJson();
+      widget.onChanged!(jsonEncode({'ops': ops}));
     }
   }
 
   /// Gets the current content as JSON Delta string.
   String getContent() {
-    return jsonEncode(_controller.document.toDelta().toJson());
+    final ops = _controller.document.toDelta().toJson();
+    return jsonEncode({'ops': ops});
   }
 
   /// Gets the current content as plain text.

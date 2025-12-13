@@ -25,6 +25,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   bool _isDeleted = false;
   bool _isLoaded = false;
   bool _isEditing = false;
+  bool _isPinned = false;
   Note? _existingNote;
   String? _initialContent;
   List<String> _selectedTagIds = [];
@@ -36,6 +37,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       // Note passed directly
       _isNew = false;
       _existingNote = widget.note;
+      _isPinned = widget.note!.isPinned;
       _titleController.text = widget.note!.title;
       _initialContent = widget.note!.content;
       _selectedTagIds = List.from(widget.note!.tagIds);
@@ -47,6 +49,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     } else {
       // New notes start in edit mode
       _isEditing = true;
+      _isPinned = false;
       _isLoaded = true;
     }
   }
@@ -64,12 +67,32 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     if (note != null && mounted) {
       setState(() {
         _existingNote = note;
+        _isPinned = note.isPinned;
         _titleController.text = note.title;
         _initialContent = note.content;
         _selectedTagIds = List.from(note.tagIds);
         _isLoaded = true;
       });
     }
+  }
+
+  Future<void> _togglePinned() async {
+    final newPinned = !_isPinned;
+    setState(() {
+      _isPinned = newPinned;
+    });
+
+    // For new notes, just keep state; it will be persisted on save/create.
+    if (_isNew || _existingNote == null) return;
+
+    final updated = _existingNote!.copyWith(
+      isPinned: newPinned,
+      isSynced: false,
+    );
+    // Update local copy immediately so subsequent saves/compares are correct.
+    _existingNote = updated;
+
+    await ref.read(notesRepositoryProvider).updateNote(updated);
   }
 
   @override
@@ -93,6 +116,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         id: const Uuid().v4(),
         title: title.isNotEmpty ? title : 'Untitled',
         content: content,
+        isPinned: _isPinned,
         tagIds: _selectedTagIds,
         updatedAt: DateTime.now(),
         isSynced: false,
@@ -103,6 +127,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       final tagsChanged = !_listEquals(_existingNote!.tagIds, _selectedTagIds);
       if (_existingNote!.title == title &&
           _existingNote!.content == content &&
+          _existingNote!.isPinned == _isPinned &&
           !tagsChanged) {
         return;
       }
@@ -110,6 +135,7 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       final updatedNote = _existingNote!.copyWith(
         title: title,
         content: content,
+        isPinned: _isPinned,
         tagIds: _selectedTagIds,
         isSynced: false,
       );
@@ -178,9 +204,32 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
           ),
           actions: [
             IconButton(
-              icon: const Icon(LucideIcons.pin),
-              onPressed: () {}, // TODO: Implement pin
-              tooltip: 'Pin Note',
+              icon: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    LucideIcons.pin,
+                    color: _isPinned
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurface,
+                  ),
+                  if (_isPinned)
+                    Positioned(
+                      right: -2,
+                      top: -2,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.tertiary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              onPressed: _isLoaded ? _togglePinned : null,
+              tooltip: _isPinned ? 'Unpin Note' : 'Pin Note',
             ),
             IconButton(
               icon: const Icon(LucideIcons.palette),

@@ -177,8 +177,11 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
                   final filteredNotes = notes.where((note) {
                     if (searchQuery.isEmpty) return true;
                     final q = searchQuery.toLowerCase();
+                    final contentText = extractPlainTextFromQuillContent(
+                      note.content,
+                    ).toLowerCase();
                     return note.title.toLowerCase().contains(q) ||
-                        (note.content?.toLowerCase().contains(q) ?? false);
+                        contentText.contains(q);
                   }).toList();
 
                   if (filteredNotes.isEmpty) {
@@ -258,6 +261,7 @@ class NoteCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tagsAsync = ref.watch(tagsControllerProvider);
+    final theme = Theme.of(context);
 
     return Hero(
       tag: 'note_${note.id}',
@@ -266,7 +270,7 @@ class NoteCard extends ConsumerWidget {
         child: Card(
           color: note.color != null
               ? Color(int.parse(note.color!))
-              : Theme.of(context).cardTheme.color,
+              : theme.cardTheme.color,
           child: InkWell(
             onTap: () => context.go('/note/${note.id}', extra: note),
             borderRadius: BorderRadius.circular(24),
@@ -275,11 +279,26 @@ class NoteCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    note.title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          note.title,
+                          style: theme.textTheme.titleLarge,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (note.isPinned) ...[
+                        const SizedBox(width: 8),
+                        Icon(
+                          LucideIcons.pin,
+                          size: 16,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ],
+                    ],
                   ),
                   if (note.content != null && note.content!.isNotEmpty) ...[
                     const SizedBox(height: 12),
@@ -333,14 +352,15 @@ class NoteCard extends ConsumerWidget {
                       if (note.updatedAt != null)
                         Text(
                           DateFormat.MMMd().format(note.updatedAt!),
-                          style: Theme.of(context).textTheme.labelSmall
-                              ?.copyWith(color: Theme.of(context).hintColor),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.hintColor,
+                          ),
                         ),
                       if (!note.isSynced)
                         Icon(
                           LucideIcons.cloudOff,
                           size: 16,
-                          color: Theme.of(context).hintColor,
+                          color: theme.hintColor,
                         ),
                     ],
                   ),

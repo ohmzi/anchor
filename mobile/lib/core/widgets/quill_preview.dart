@@ -24,7 +24,7 @@ class QuillPreview extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
-    final plainText = _extractPlainText(content!);
+    final plainText = extractPlainTextFromQuillContent(content);
 
     if (plainText.isEmpty) {
       return const SizedBox.shrink();
@@ -44,17 +44,30 @@ class QuillPreview extends StatelessWidget {
     );
   }
 
-  /// Extracts plain text from JSON Delta or returns the string as-is.
-  String _extractPlainText(String content) {
-    try {
-      final json = jsonDecode(content);
-      if (json is List) {
-        final document = Document.fromJson(json);
-        return document.toPlainText().trim();
-      }
-    } catch (_) {
-      // Not valid JSON, return as plain text
+  /// Extracts plain text from canonical Quill Delta JSON (`{ops: [...]}`).
+  // Kept for backward source compatibility in case other widgets referenced it,
+  // but the implementation now lives in the top-level helper below.
+}
+
+/// Extracts plain text from canonical Quill Delta JSON (`{ops: [...]}`).
+/// Strict: returns empty string if the content is null/empty/invalid.
+String extractPlainTextFromQuillContent(String? content) {
+  if (content == null || content.isEmpty) return '';
+  try {
+    final json = jsonDecode(content);
+    if (json is Map && json['ops'] is List) {
+      final document = Document.fromJson(json['ops'] as List);
+      final raw = document.toPlainText();
+      final lines = raw
+          .split(RegExp(r'\r?\n'))
+          .map((l) => l.trim())
+          .where((l) => l.isNotEmpty)
+          .toList();
+      // Preserve real newlines, but ignore multiple blank newlines.
+      return lines.join('\n');
     }
-    return content.trim();
+  } catch (_) {
+    // invalid JSON -> strict mode
   }
+  return '';
 }
