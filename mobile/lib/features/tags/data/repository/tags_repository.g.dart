@@ -6,22 +6,46 @@ part of 'tags_repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$tagsRepositoryHash() => r'bc56bbe5b7684b2896c9d3c9ab7c16852abd0ec1';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [tagsRepository].
 @ProviderFor(tagsRepository)
-final tagsRepositoryProvider = AutoDisposeProvider<TagsRepository>.internal(
-  tagsRepository,
-  name: r'tagsRepositoryProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$tagsRepositoryHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+const tagsRepositoryProvider = TagsRepositoryProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef TagsRepositoryRef = AutoDisposeProviderRef<TagsRepository>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class TagsRepositoryProvider
+    extends $FunctionalProvider<TagsRepository, TagsRepository, TagsRepository>
+    with $Provider<TagsRepository> {
+  const TagsRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'tagsRepositoryProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$tagsRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<TagsRepository> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  TagsRepository create(Ref ref) {
+    return tagsRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(TagsRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<TagsRepository>(value),
+    );
+  }
+}
+
+String _$tagsRepositoryHash() => r'bc56bbe5b7684b2896c9d3c9ab7c16852abd0ec1';

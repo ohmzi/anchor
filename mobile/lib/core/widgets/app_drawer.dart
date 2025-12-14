@@ -364,7 +364,7 @@ class _AppDrawerState extends ConsumerState<AppDrawer>
                 ),
               ),
             ),
-            error: (_, __) => const SizedBox.shrink(),
+            error: (_, _) => const SizedBox.shrink(),
           ),
           secondChild: const SizedBox.shrink(),
           crossFadeState: _tagsExpanded

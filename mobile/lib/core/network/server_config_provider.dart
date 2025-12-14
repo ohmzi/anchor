@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -37,5 +36,5 @@ class ServerConfig extends _$ServerConfig {
 @riverpod
 String? serverUrl(Ref ref) {
   final config = ref.watch(serverConfigProvider);
-  return config.valueOrNull;
+  return config.value;
 }

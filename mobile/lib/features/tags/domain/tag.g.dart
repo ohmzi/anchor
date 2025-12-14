@@ -6,7 +6,7 @@ part of 'tag.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-_$TagImpl _$$TagImplFromJson(Map<String, dynamic> json) => _$TagImpl(
+_Tag _$TagFromJson(Map<String, dynamic> json) => _Tag(
   id: json['id'] as String,
   name: json['name'] as String,
   color: json['color'] as String?,
@@ -18,7 +18,7 @@ _$TagImpl _$$TagImplFromJson(Map<String, dynamic> json) => _$TagImpl(
       : TagCount.fromJson(json['_count'] as Map<String, dynamic>),
 );
 
-Map<String, dynamic> _$$TagImplToJson(_$TagImpl instance) => <String, dynamic>{
+Map<String, dynamic> _$TagToJson(_Tag instance) => <String, dynamic>{
   'id': instance.id,
   'name': instance.name,
   'color': instance.color,
@@ -26,8 +26,9 @@ Map<String, dynamic> _$$TagImplToJson(_$TagImpl instance) => <String, dynamic>{
   '_count': instance.count,
 };
 
-_$TagCountImpl _$$TagCountImplFromJson(Map<String, dynamic> json) =>
-    _$TagCountImpl(notes: (json['notes'] as num).toInt());
+_TagCount _$TagCountFromJson(Map<String, dynamic> json) =>
+    _TagCount(notes: (json['notes'] as num).toInt());
 
-Map<String, dynamic> _$$TagCountImplToJson(_$TagCountImpl instance) =>
-    <String, dynamic>{'notes': instance.notes};
+Map<String, dynamic> _$TagCountToJson(_TagCount instance) => <String, dynamic>{
+  'notes': instance.notes,
+};

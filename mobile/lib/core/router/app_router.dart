@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
@@ -114,8 +113,8 @@ GoRouter goRouter(Ref ref) {
         return null;
       }
 
-      final hasServerUrl = configState.valueOrNull?.isNotEmpty == true;
-      final isLoggedIn = authState.valueOrNull != null;
+      final hasServerUrl = configState.value?.isNotEmpty == true;
+      final isLoggedIn = authState.value != null;
 
       final isSplash = state.matchedLocation == AppRoutes.splash;
       final isServerConfig = state.matchedLocation == AppRoutes.serverConfig;

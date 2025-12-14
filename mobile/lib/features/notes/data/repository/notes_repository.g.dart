@@ -6,22 +6,47 @@ part of 'notes_repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$notesRepositoryHash() => r'ddce8df6f248496fee7999dbbc415e295247d5f9';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [notesRepository].
 @ProviderFor(notesRepository)
-final notesRepositoryProvider = AutoDisposeProvider<NotesRepository>.internal(
-  notesRepository,
-  name: r'notesRepositoryProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$notesRepositoryHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+const notesRepositoryProvider = NotesRepositoryProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef NotesRepositoryRef = AutoDisposeProviderRef<NotesRepository>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class NotesRepositoryProvider
+    extends
+        $FunctionalProvider<NotesRepository, NotesRepository, NotesRepository>
+    with $Provider<NotesRepository> {
+  const NotesRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'notesRepositoryProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$notesRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<NotesRepository> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  NotesRepository create(Ref ref) {
+    return notesRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(NotesRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<NotesRepository>(value),
+    );
+  }
+}
+
+String _$notesRepositoryHash() => r'ddce8df6f248496fee7999dbbc415e295247d5f9';
