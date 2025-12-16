@@ -80,7 +80,7 @@ export class NotesService {
       throw new NotFoundException('Note not found');
     }
 
-    if (!includeAllStates && note.state !== NoteState.active) {
+    if (!includeAllStates && note.state === NoteState.deleted) {
       throw new NotFoundException('Note not found');
     }
 

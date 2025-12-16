@@ -20,11 +20,13 @@ import { NoteBackground } from "./background";
 interface NoteBackgroundPickerProps {
   selectedBackground: string | null | undefined;
   onBackgroundChange: (background: string | null) => void;
+  disabled?: boolean;
 }
 
 export function NoteBackgroundPicker({
   selectedBackground,
   onBackgroundChange,
+  disabled = false,
 }: NoteBackgroundPickerProps) {
   const [open, setOpen] = useState(false);
   const { theme, systemTheme } = useTheme();
@@ -37,13 +39,14 @@ export function NoteBackgroundPicker({
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open && !disabled} onOpenChange={(open) => !disabled && setOpen(open)}>
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
           className="h-9 w-9 rounded-xl"
           title="Change background"
+          disabled={disabled}
         >
           <Palette className="h-4 w-4" />
         </Button>

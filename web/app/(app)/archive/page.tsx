@@ -1,12 +1,13 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Archive, ArchiveRestore, Loader2 } from "lucide-react";
+import { ArchiveRestore, Loader2 } from "lucide-react";
 import {
   getArchivedNotes,
   unarchiveNote,
   deltaToFullPlainText,
   NoteBackground,
+  ArchiveDialog,
 } from "@/features/notes";
 import type { Note } from "@/features/notes";
 import { getTags } from "@/features/tags";
@@ -17,14 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Pin } from "lucide-react";
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -291,42 +284,16 @@ function ArchiveNoteCard({
                 <TooltipContent side="top">Unarchive</TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <ArchiveRestore className="h-5 w-5 text-primary" />
-                    </div>
-                    Unarchive Note?
-                  </DialogTitle>
-                  <DialogDescription className="pt-2">
-                    This note will be moved back to your notes.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="gap-2 sm:gap-0">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      onUnarchive();
-                      setDialogOpen(false);
-                    }}
-                    disabled={isUnarchiving}
-                  >
-                    {isUnarchiving ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Unarchive"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <ArchiveDialog
+              open={dialogOpen}
+              onOpenChange={handleDialogClose}
+              isArchived={true}
+              onConfirm={() => {
+                onUnarchive();
+                setDialogOpen(false);
+              }}
+              isPending={isUnarchiving}
+            />
           </div>
         </CardContent>
       </div>

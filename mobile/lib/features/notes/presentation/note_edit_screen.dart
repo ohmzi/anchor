@@ -49,6 +49,10 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
       _selectedTagIds = List.from(widget.note!.tagIds);
       _selectedBackground = widget.note!.background;
       _isLoaded = true;
+      // Trashed notes are read-only
+      if (widget.note!.isTrashed) {
+        _isEditing = false;
+      }
     } else if (widget.noteId != null) {
       // Fallback: fetch from repository if only ID is provided
       _isNew = false;
@@ -62,6 +66,10 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   void _startEditing() {
+    // Don't allow editing if note is trashed
+    if (_existingNote?.isTrashed == true) {
+      return;
+    }
     setState(() {
       _isEditing = true;
     });
@@ -81,11 +89,19 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
         _selectedTagIds = List.from(note.tagIds);
         _selectedBackground = note.background;
         _isLoaded = true;
+        // Trashed notes are read-only
+        if (note.isTrashed) {
+          _isEditing = false;
+        }
       });
     }
   }
 
   Future<void> _togglePinned() async {
+    // Don't allow pinning if note is trashed
+    if (_existingNote?.isTrashed == true) {
+      return;
+    }
     setState(() {
       _isPinned = !_isPinned;
     });
@@ -154,6 +170,10 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   void _showColorPicker() {
+    // Don't allow changing background if note is trashed
+    if (_existingNote?.isTrashed == true) {
+      return;
+    }
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -177,6 +197,11 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
   }
 
   Future<void> _saveNote() async {
+    // Don't save if note is trashed (read-only)
+    if (_existingNote?.isTrashed == true) {
+      return;
+    }
+
     final title = _titleController.text.trim();
     final editorState = _editorKey.currentState;
     final content = editorState?.getContent() ?? '';
@@ -287,9 +312,79 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
     }
   }
 
+  Future<void> _restoreNote() async {
+    if (_isNew || _existingNote == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => ConfirmDialog(
+        icon: LucideIcons.rotateCcw,
+        iconColor: Theme.of(context).colorScheme.primary,
+        title: 'Restore Note',
+        message: 'This note will be restored to your notes.',
+        cancelText: 'Cancel',
+        confirmText: 'Restore',
+        onConfirm: () {},
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    try {
+      await ref.read(notesRepositoryProvider).restoreNote(widget.noteId!);
+
+      // Reload note to get updated state
+      await _loadNote();
+
+      if (mounted) {
+        AppSnackbar.showSuccess(context, message: 'Note restored');
+      }
+    } catch (e) {
+      if (mounted) {
+        AppSnackbar.showError(context, message: 'Failed to restore note');
+      }
+    }
+  }
+
+  Future<void> _permanentDeleteNote() async {
+    if (_isNew || _existingNote == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => ConfirmDialog(
+        icon: LucideIcons.trash2,
+        iconColor: Theme.of(context).colorScheme.error,
+        title: 'Delete Forever',
+        message:
+            'This action cannot be undone. This note will be permanently deleted and cannot be recovered.',
+        cancelText: 'Cancel',
+        confirmText: 'Delete Forever',
+        confirmColor: Theme.of(context).colorScheme.error,
+        onConfirm: () {},
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        await ref.read(notesRepositoryProvider).permanentDelete(widget.noteId!);
+        _isDeleted = true;
+
+        if (mounted) {
+          AppSnackbar.showSuccess(context, message: 'Note permanently deleted');
+          context.pop();
+        }
+      } catch (e) {
+        if (mounted) {
+          AppSnackbar.showError(context, message: 'Failed to delete note');
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isTrashed = _existingNote?.isTrashed ?? false;
 
     return PopScope(
       onPopInvokedWithResult: (didPop, result) async {
@@ -309,57 +404,75 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
               onPressed: () => context.pop(),
             ),
             actions: [
-              IconButton(
-                icon: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Icon(
-                      LucideIcons.pin,
-                      color: _isPinned
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurface,
-                    ),
-                    if (_isPinned)
-                      Positioned(
-                        right: -2,
-                        top: -2,
-                        child: Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.tertiary,
-                            shape: BoxShape.circle,
+              if (isTrashed) ...[
+                // Restore button for trashed notes
+                IconButton(
+                  icon: const Icon(LucideIcons.rotateCcw),
+                  onPressed: _isLoaded && !_isNew ? _restoreNote : null,
+                  tooltip: 'Restore Note',
+                ),
+                // Permanent delete button for trashed notes
+                IconButton(
+                  icon: const Icon(LucideIcons.trash2),
+                  onPressed: _isLoaded && !_isNew ? _permanentDeleteNote : null,
+                  tooltip: 'Delete Forever',
+                ),
+              ] else ...[
+                // Normal editing controls for non-trashed notes
+                IconButton(
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        LucideIcons.pin,
+                        color: _isPinned
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface,
+                      ),
+                      if (_isPinned)
+                        Positioned(
+                          right: -2,
+                          top: -2,
+                          child: Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.tertiary,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
+                  onPressed: _isLoaded && !isTrashed ? _togglePinned : null,
+                  tooltip: _isPinned ? 'Unpin Note' : 'Pin Note',
                 ),
-                onPressed: _isLoaded ? _togglePinned : null,
-                tooltip: _isPinned ? 'Unpin Note' : 'Pin Note',
-              ),
-              IconButton(
-                icon: const Icon(LucideIcons.palette),
-                onPressed: _showColorPicker,
-                tooltip: 'Change Background',
-              ),
-              IconButton(
-                icon: Icon(
-                  _isArchived
-                      ? LucideIcons.archiveRestore
-                      : LucideIcons.archive,
+                IconButton(
+                  icon: const Icon(LucideIcons.palette),
+                  onPressed: !isTrashed ? _showColorPicker : null,
+                  tooltip: 'Change Background',
                 ),
-                onPressed: _isLoaded && !_isNew ? _toggleArchived : null,
-                tooltip: _isArchived ? 'Unarchive Note' : 'Archive Note',
-              ),
-              IconButton(
-                icon: const Icon(LucideIcons.trash2),
-                onPressed: _deleteNote,
-                tooltip: 'Delete Note',
-              ),
+                IconButton(
+                  icon: Icon(
+                    _isArchived
+                        ? LucideIcons.archiveRestore
+                        : LucideIcons.archive,
+                  ),
+                  onPressed: _isLoaded && !_isNew && !isTrashed
+                      ? _toggleArchived
+                      : null,
+                  tooltip: _isArchived ? 'Unarchive Note' : 'Archive Note',
+                ),
+                IconButton(
+                  icon: const Icon(LucideIcons.trash2),
+                  onPressed: !isTrashed ? _deleteNote : null,
+                  tooltip: 'Delete Note',
+                ),
+              ],
               const SizedBox(width: 8),
             ],
           ),
-          floatingActionButton: !_isEditing
+          floatingActionButton: !_isEditing && !isTrashed
               ? FloatingActionButton(
                   onPressed: _startEditing,
                   tooltip: 'Edit Note',
@@ -372,17 +485,45 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
               color: Colors.transparent,
               child: Column(
                 children: [
+                  // Read-only banner for trashed notes
+                  if (isTrashed)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      child: Row(
+                        children: [
+                          Icon(
+                            LucideIcons.lock,
+                            size: 16,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'This note is in trash and cannot be edited. Restore it to make changes.',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: TextField(
                       controller: _titleController,
-                      readOnly: !_isEditing,
+                      readOnly: !_isEditing || isTrashed,
                       style: theme.textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: theme.colorScheme.onSurface,
                       ),
                       decoration: InputDecoration(
-                        hintText: _isEditing ? 'Title' : null,
+                        hintText: _isEditing && !isTrashed ? 'Title' : null,
                         hintStyle: TextStyle(
                           color: theme.colorScheme.onSurface.withValues(
                             alpha: 0.3,
@@ -400,11 +541,13 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                   if (_isEditing || _selectedTagIds.isNotEmpty)
                     TagSelector(
                       selectedTagIds: _selectedTagIds,
-                      readOnly: !_isEditing,
+                      readOnly: !_isEditing || isTrashed,
                       onTagsChanged: (tagIds) {
-                        setState(() {
-                          _selectedTagIds = tagIds;
-                        });
+                        if (!isTrashed) {
+                          setState(() {
+                            _selectedTagIds = tagIds;
+                          });
+                        }
                       },
                     ),
                   Expanded(
@@ -413,8 +556,8 @@ class _NoteEditScreenState extends ConsumerState<NoteEditScreen> {
                             key: _editorKey,
                             initialContent: _initialContent,
                             hintText: 'Start typing...',
-                            showToolbar: _isEditing,
-                            readOnly: !_isEditing,
+                            showToolbar: _isEditing && !isTrashed,
+                            readOnly: !_isEditing || isTrashed,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 24,
                               vertical: 16,

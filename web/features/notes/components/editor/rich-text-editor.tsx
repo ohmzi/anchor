@@ -18,6 +18,7 @@ interface RichTextEditorProps {
   onChange: (nextStoredContent: string) => void;
   placeholder?: string;
   className?: string;
+  readOnly?: boolean;
 }
 
 export function RichTextEditor({
@@ -25,6 +26,7 @@ export function RichTextEditor({
   onChange,
   placeholder = "Start typing...",
   className,
+  readOnly = false,
 }: RichTextEditorProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const quillRef = useRef<any>(null);
@@ -61,7 +63,7 @@ export function RichTextEditor({
 
   return (
     <div className={className}>
-      <QuillToolbar quill={quill} />
+      {!readOnly && <QuillToolbar quill={quill} />}
       <div className="anchor-quill">
         <ReactQuill
           ref={quillRef}
@@ -77,6 +79,7 @@ export function RichTextEditor({
           ) => {
             // Prevent initial hydration/normalization from triggering autosave.
             if (source !== "user") return;
+            if (readOnly) return;
 
             // Always store canonical JSON as { ops: [...] }
             const next = stringifyDelta(editor.getContents());
@@ -85,7 +88,9 @@ export function RichTextEditor({
           modules={modules}
           formats={formats}
           placeholder={placeholder}
+          readOnly={readOnly}
           onFocus={() => {
+            if (readOnly) return;
             const q = quillRef.current?.getEditor?.();
             if (q) setQuill(q);
           }}

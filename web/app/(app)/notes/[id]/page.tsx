@@ -3,17 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  Trash2,
-  Pin,
-  PinOff,
-  Loader2,
-  AlertTriangle,
-  Check,
-  Archive,
-  ArchiveRestore,
-} from "lucide-react";
+import { Loader2 } from "lucide-react";
 import {
   getNote,
   createNote,
@@ -21,33 +11,20 @@ import {
   deleteNote,
   archiveNote,
   unarchiveNote,
+  restoreNote,
+  permanentDeleteNote,
   isStoredContentEmpty,
+  NoteBackground,
+  ArchiveDialog,
+  RestoreDialog,
+  DeleteDialog,
+  PermanentDeleteDialog,
+  ReadOnlyBanner,
+  NoteEditorHeader,
+  NoteEditorContent,
 } from "@/features/notes";
 import type { CreateNoteDto, UpdateNoteDto, Note } from "@/features/notes";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
-import {
-  RichTextEditor,
-  NoteBackgroundPicker,
-  NoteBackground,
-} from "@/features/notes";
-import { TagSelector } from "@/features/tags";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 export default function NoteEditorPage() {
   const params = useParams();
@@ -64,6 +41,8 @@ export default function NoteEditorPage() {
   const [background, setBackground] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -95,7 +74,7 @@ export default function NoteEditorPage() {
   }, [noteId, isNew]);
 
   // Fetch existing note (only if not in sessionStorage)
-  const { data: noteFromApi, isLoading } = useQuery({
+  const { data: noteFromApi, isLoading, refetch: refetchNote } = useQuery({
     queryKey: ["notes", noteId],
     queryFn: () => getNote(noteId),
     enabled: !isNew && !noteFromStorage,
@@ -103,6 +82,9 @@ export default function NoteEditorPage() {
 
   // Use note from storage if available, otherwise use API data
   const note = isNew ? null : noteFromStorage || noteFromApi;
+
+  // Check if note is read-only (only trashed notes are read-only)
+  const isReadOnly = note ? note.state === "trashed" : false;
 
   // Initialize form with note data
   useEffect(() => {
@@ -193,16 +175,54 @@ export default function NoteEditorPage() {
   // Unarchive note mutation
   const unarchiveMutation = useMutation({
     mutationFn: () => unarchiveNote(noteId),
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
       queryClient.invalidateQueries({ queryKey: ["notes", "archive"] });
       queryClient.invalidateQueries({ queryKey: ["notes", noteId] });
       queryClient.invalidateQueries({ queryKey: ["tags"] });
       setIsArchived(false);
+      // Clear noteFromStorage so the query can refetch
+      setNoteFromStorage(null);
+      // Refetch the note to get updated data
+      await refetchNote();
       toast.success("Note unarchived");
     },
     onError: () => {
       toast.error("Failed to unarchive note");
+    },
+  });
+
+  // Restore note mutation (for trashed notes)
+  const restoreMutation = useMutation({
+    mutationFn: () => restoreNote(noteId),
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      queryClient.invalidateQueries({ queryKey: ["notes", "trash"] });
+      queryClient.invalidateQueries({ queryKey: ["notes", noteId] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      // Clear noteFromStorage so the query can refetch
+      setNoteFromStorage(null);
+      // Refetch the note to get updated data
+      await refetchNote();
+      toast.success("Note restored");
+    },
+    onError: () => {
+      toast.error("Failed to restore note");
+    },
+  });
+
+  // Permanent delete mutation (for trashed notes)
+  const permanentDeleteMutation = useMutation({
+    mutationFn: () => permanentDeleteNote(noteId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      queryClient.invalidateQueries({ queryKey: ["notes", "trash"] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      toast.success("Note permanently deleted");
+      router.back();
+    },
+    onError: () => {
+      toast.error("Failed to delete note");
     },
   });
 
@@ -229,6 +249,7 @@ export default function NoteEditorPage() {
 
   // Auto-save with debounce
   const save = useCallback(() => {
+    if (isReadOnly) return;
     if (!title.trim() && isStoredContentEmpty(content)) return;
 
     if (isNew) {
@@ -248,11 +269,11 @@ export default function NoteEditorPage() {
         tagIds: selectedTagIds,
       });
     }
-  }, [title, content, isPinned, selectedTagIds, background, isNew, createMutation, updateMutation]);
+  }, [title, content, isPinned, selectedTagIds, background, isNew, isReadOnly, createMutation, updateMutation]);
 
-  // Debounced auto-save
+  // Debounced auto-save (disabled when read-only)
   useEffect(() => {
-    if (!hasUnsavedChanges) return;
+    if (!hasUnsavedChanges || isReadOnly) return;
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -267,7 +288,7 @@ export default function NoteEditorPage() {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [hasUnsavedChanges, save]);
+  }, [hasUnsavedChanges, save, isReadOnly]);
 
   // Save on unmount if there are changes
   useEffect(() => {
@@ -305,264 +326,98 @@ export default function NoteEditorPage() {
   const isSaved = !hasUnsavedChanges && !isSaving && !isNew;
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <div className="min-h-screen flex flex-col relative">
-        {/* Background covering entire page */}
-        <NoteBackground
-          styleId={background}
-          className="absolute inset-0 min-h-full"
-        />
+    <div className="min-h-screen flex flex-col relative">
+      {/* Background covering entire page */}
+      <NoteBackground
+        styleId={background}
+        className="absolute inset-0 min-h-full"
+      />
 
-        {/* Header */}
-        <header
-          className={cn(
-            "sticky top-0 z-40 flex h-16 items-center justify-between",
-            "border-b border-border/30 backdrop-blur-sm px-4 lg:px-6",
-            "bg-background/60 dark:bg-background/40"
-          )}
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleBack}
-                className="h-9 w-9 rounded-xl"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Back to notes</TooltipContent>
-          </Tooltip>
+      {/* Header */}
+      <NoteEditorHeader
+        isNew={isNew}
+        isReadOnly={isReadOnly}
+        isPinned={isPinned}
+        isArchived={isArchived}
+        background={background}
+        isSaving={isSaving}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isSaved={isSaved}
+        onBack={handleBack}
+        onTogglePin={togglePin}
+        onBackgroundChange={setBackground}
+        onArchiveClick={() => setArchiveDialogOpen(true)}
+        onDeleteClick={() => setDeleteDialogOpen(true)}
+        onRestoreClick={() => setRestoreDialogOpen(true)}
+        onPermanentDeleteClick={() => setPermanentDeleteDialogOpen(true)}
+        restorePending={restoreMutation.isPending}
+        deletePending={deleteMutation.isPending}
+        permanentDeletePending={permanentDeleteMutation.isPending}
+        archivePending={archiveMutation.isPending}
+        unarchivePending={unarchiveMutation.isPending}
+      />
 
-          <div className="flex items-center gap-2">
-            {/* Save status indicator */}
-            <div
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300",
-                "backdrop-blur-sm",
-                isSaving && "bg-muted/80 text-muted-foreground",
-                hasUnsavedChanges && !isSaving && "bg-amber-500/20 text-amber-600 dark:text-amber-400",
-                isSaved && "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
-              )}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : hasUnsavedChanges ? (
-                <>
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  <span>Unsaved</span>
-                </>
-              ) : isSaved ? (
-                <>
-                  <Check className="h-3 w-3" />
-                  <span>Saved</span>
-                </>
-              ) : null}
-            </div>
+      {/* Read-only Banner */}
+      {isReadOnly && (
+        <ReadOnlyBanner message="This note is in trash and cannot be edited. Restore it to make changes." />
+      )}
 
-            <div className="h-6 w-px bg-border/50 mx-1" />
+      {/* Content */}
+      <NoteEditorContent
+        title={title}
+        content={content}
+        selectedTagIds={selectedTagIds}
+        isReadOnly={isReadOnly}
+        onTitleChange={setTitle}
+        onContentChange={setContent}
+        onTagsChange={setSelectedTagIds}
+      />
 
-            <NoteBackgroundPicker
-              selectedBackground={background}
-              onBackgroundChange={setBackground}
-            />
+      {/* Dialogs */}
+      <ArchiveDialog
+        open={archiveDialogOpen}
+        onOpenChange={setArchiveDialogOpen}
+        isArchived={isArchived}
+        onConfirm={() => {
+          if (isArchived) {
+            unarchiveMutation.mutate();
+          } else {
+            archiveMutation.mutate();
+          }
+          setArchiveDialogOpen(false);
+        }}
+        isPending={archiveMutation.isPending || unarchiveMutation.isPending}
+      />
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={togglePin}
-                  className={cn(
-                    "h-9 w-9 rounded-xl transition-colors",
-                    isPinned
-                      ? "text-accent bg-accent/10 hover:bg-accent/20"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {isPinned ? (
-                    <Pin className="h-4 w-4 fill-current" />
-                  ) : (
-                    <PinOff className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {isPinned ? "Unpin note" : "Pin note"}
-              </TooltipContent>
-            </Tooltip>
+      <RestoreDialog
+        open={restoreDialogOpen}
+        onOpenChange={setRestoreDialogOpen}
+        onConfirm={() => {
+          restoreMutation.mutate();
+          setRestoreDialogOpen(false);
+        }}
+        isPending={restoreMutation.isPending}
+      />
 
-            {!isNew && (
-              <>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setArchiveDialogOpen(true)}
-                      className={cn(
-                        "h-9 w-9 rounded-xl transition-colors",
-                        isArchived
-                          ? "text-primary bg-primary/10 hover:bg-primary/20"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {isArchived ? (
-                        <ArchiveRestore className="h-4 w-4" />
-                      ) : (
-                        <Archive className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">
-                    {isArchived ? "Unarchive note" : "Archive note"}
-                  </TooltipContent>
-                </Tooltip>
+      <DeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={() => {
+          deleteMutation.mutate();
+          setDeleteDialogOpen(false);
+        }}
+        isPending={deleteMutation.isPending}
+      />
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteDialogOpen(true)}
-                      className="h-9 w-9 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="bottom">Move to trash</TooltipContent>
-                </Tooltip>
-              </>
-            )}
-          </div>
-        </header>
-
-        {/* Content */}
-        <div className="flex-1 relative">
-          <div className="relative max-w-3xl mx-auto w-full px-4 lg:px-6 py-8">
-            {/* Title */}
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Title"
-              className={cn(
-                "!bg-transparent border-0 shadow-none rounded-none",
-                "px-0 h-auto py-2 mb-4",
-                "text-3xl lg:text-4xl font-bold",
-                "placeholder:text-muted-foreground/40",
-                "focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-0"
-              )}
-            />
-
-            {/* Tags */}
-            <div className="py-3 border-b border-border/30 mb-6">
-              <TagSelector
-                selectedTagIds={selectedTagIds}
-                onTagsChange={setSelectedTagIds}
-              />
-            </div>
-
-            {/* Content */}
-            <RichTextEditor
-              value={content}
-              onChange={setContent}
-              placeholder="Start typing your thoughts..."
-              className={cn("w-full", "min-h-[calc(100vh-320px)]")}
-            />
-          </div>
-        </div>
-
-        {/* Archive Dialog */}
-        <Dialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  {isArchived ? (
-                    <ArchiveRestore className="h-5 w-5 text-primary" />
-                  ) : (
-                    <Archive className="h-5 w-5 text-primary" />
-                  )}
-                </div>
-                {isArchived ? "Unarchive note?" : "Archive note?"}
-              </DialogTitle>
-              <DialogDescription className="pt-2">
-                {isArchived
-                  ? "This note will be moved back to your notes."
-                  : "This note will be moved to archive."}
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                variant="ghost"
-                onClick={() => setArchiveDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  if (isArchived) {
-                    unarchiveMutation.mutate();
-                  } else {
-                    archiveMutation.mutate();
-                  }
-                  setArchiveDialogOpen(false);
-                }}
-                disabled={archiveMutation.isPending || unarchiveMutation.isPending}
-              >
-                {archiveMutation.isPending || unarchiveMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : isArchived ? (
-                  "Unarchive"
-                ) : (
-                  "Archive"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Delete Dialog */}
-        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                  <AlertTriangle className="h-5 w-5 text-destructive" />
-                </div>
-                Delete note?
-              </DialogTitle>
-              <DialogDescription className="pt-2">
-                This note will be moved to trash. You can restore it within 30
-                days.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  deleteMutation.mutate();
-                  setDeleteDialogOpen(false);
-                }}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Move to Trash"
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </TooltipProvider>
+      <PermanentDeleteDialog
+        open={permanentDeleteDialogOpen}
+        onOpenChange={setPermanentDeleteDialogOpen}
+        onConfirm={() => {
+          permanentDeleteMutation.mutate();
+          setPermanentDeleteDialogOpen(false);
+        }}
+        isPending={permanentDeleteMutation.isPending}
+      />
+    </div>
   );
 }

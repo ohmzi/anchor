@@ -1,13 +1,15 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, RotateCcw, Loader2, AlertTriangle, Pin, CheckCircle2 } from "lucide-react";
+import { Trash2, RotateCcw, Loader2, Pin } from "lucide-react";
 import {
   getTrashedNotes,
   restoreNote,
   permanentDeleteNote,
   deltaToFullPlainText,
   NoteBackground,
+  RestoreDialog,
+  PermanentDeleteDialog,
 } from "@/features/notes";
 import type { Note } from "@/features/notes";
 import { getTags } from "@/features/tags";
@@ -19,14 +21,6 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Masonry from "react-masonry-css";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -349,77 +343,21 @@ function TrashNoteCard({
                 </Tooltip>
               </div>
             </TooltipProvider>
-            <Dialog open={restoreDialogOpen} onOpenChange={handleRestoreDialogClose}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
-                      <CheckCircle2 className="h-5 w-5 text-accent" />
-                    </div>
-                    Restore note?
-                  </DialogTitle>
-                  <DialogDescription className="pt-2">
-                    This note will be restored to your notes.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="gap-2 sm:gap-0">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setRestoreDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleRestoreConfirm}
-                    disabled={isRestoring}
-                  >
-                    {isRestoring ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Restore"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            <Dialog open={deleteDialogOpen} onOpenChange={handleDialogClose}>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
-                      <AlertTriangle className="h-5 w-5 text-destructive" />
-                    </div>
-                    Delete permanently?
-                  </DialogTitle>
-                  <DialogDescription className="pt-2">
-                    This action cannot be undone. This note will be permanently
-                    deleted and cannot be recovered.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="gap-2 sm:gap-0">
-                  <Button
-                    variant="ghost"
-                    onClick={() => setDeleteDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() => {
-                      onDelete();
-                      setDeleteDialogOpen(false);
-                    }}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Delete Forever"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <RestoreDialog
+              open={restoreDialogOpen}
+              onOpenChange={handleRestoreDialogClose}
+              onConfirm={handleRestoreConfirm}
+              isPending={isRestoring}
+            />
+            <PermanentDeleteDialog
+              open={deleteDialogOpen}
+              onOpenChange={handleDialogClose}
+              onConfirm={() => {
+                onDelete();
+                setDeleteDialogOpen(false);
+              }}
+              isPending={isDeleting}
+            />
           </div>
         </CardContent>
       </div>
