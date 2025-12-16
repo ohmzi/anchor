@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   Anchor,
@@ -17,6 +18,9 @@ import {
   ChevronLeft,
   LucideHash,
   Plus,
+  MoreVertical,
+  Pencil,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -28,15 +32,24 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/features/auth";
-import { useQuery } from "@tanstack/react-query";
-import { getTags } from "@/features/tags";
-import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getTags, updateTag, deleteTag, type Tag as TagType } from "@/features/tags";
 
 interface SidebarProps {
   className?: string;
@@ -53,17 +66,70 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { logout, user } = useAuth();
-  const [tagsOpen, setTagsOpen] = useState(true);
+  const queryClient = useQueryClient();
+
+  const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<TagType | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const { data: tags = [] } = useQuery({
     queryKey: ["tags"],
     queryFn: getTags,
   });
 
+  const updateTagMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      updateTag(id, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      setRenameDialogOpen(false);
+      setSelectedTag(null);
+      setRenameValue("");
+    },
+  });
+
+  const deleteTagMutation = useMutation({
+    mutationFn: (id: string) => deleteTag(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      // If we're currently viewing this tag, navigate to all notes
+      if (searchParams?.get("tagId") === selectedTag?.id) {
+        router.push("/notes");
+      }
+      setDeleteDialogOpen(false);
+      setSelectedTag(null);
+    },
+  });
+
   // Extract the currently selected tag id from URL param, e.g. /notes?tagId=tagid123
   const tagIdParam = searchParams?.get("tagId");
+
+  const handleRenameClick = (tag: TagType) => {
+    setSelectedTag(tag);
+    setRenameValue(tag.name);
+    setRenameDialogOpen(true);
+  };
+
+  const handleDeleteClick = (tag: TagType) => {
+    setSelectedTag(tag);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleRenameSubmit = () => {
+    if (selectedTag && renameValue.trim() && renameValue.trim() !== selectedTag.name) {
+      updateTagMutation.mutate({ id: selectedTag.id, name: renameValue.trim() });
+    }
+  };
+
+  const handleDeleteSubmit = () => {
+    if (selectedTag) {
+      deleteTagMutation.mutate(selectedTag.id);
+    }
+  };
 
   const navItems = [
     {
@@ -209,111 +275,179 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <ScrollArea className="flex-1 px-3 py-2">
-          <div className="space-y-1">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href && !(item.href === "/notes" && tagIdParam);
-              const NavLink = (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={handleNavClick}
-                  className={cn(
-                    "flex items-center rounded-xl text-sm font-medium transition-all duration-200",
-                    isCollapsed
-                      ? "justify-center h-10 w-10 mx-auto"
-                      : "gap-3 px-3 py-2.5",
-                    isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                  )}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <item.icon className="h-4 w-4 flex-shrink-0" />
-                  {!isCollapsed && item.label}
-                </Link>
+        <div className={cn("space-y-1", isCollapsed ? "px-2 py-2" : "px-3 py-2")}>
+          {navItems.map((item) => {
+            const isActive = pathname === item.href && !(item.href === "/notes" && tagIdParam);
+            const NavLink = (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={handleNavClick}
+                className={cn(
+                  "flex items-center rounded-xl text-sm font-medium transition-all duration-200",
+                  isCollapsed
+                    ? "justify-center h-10 w-10 mx-auto"
+                    : "gap-3 px-3 py-2.5",
+                  isActive
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                )}
+                aria-current={isActive ? "page" : undefined}
+              >
+                <item.icon className="h-4 w-4 flex-shrink-0" />
+                {!isCollapsed && item.label}
+              </Link>
+            );
+
+            if (isCollapsed) {
+              return (
+                <Tooltip key={item.href}>
+                  <TooltipTrigger asChild>{NavLink}</TooltipTrigger>
+                  <TooltipContent side="right">{item.label}</TooltipContent>
+                </Tooltip>
               );
+            }
 
-              if (isCollapsed) {
-                return (
-                  <Tooltip key={item.href}>
-                    <TooltipTrigger asChild>{NavLink}</TooltipTrigger>
-                    <TooltipContent side="right">{item.label}</TooltipContent>
-                  </Tooltip>
-                );
-              }
+            return NavLink;
+          })}
+        </div>
 
-              return NavLink;
-            })}
-          </div>
-
-          {/* Tags Section */}
-          {tags.length > 0 && (
-            <>
-              <Separator className="my-4 bg-sidebar-border" />
-              {isCollapsed ? (
-                <div className="space-y-1">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex justify-center">
-                        <div className="h-10 w-10 rounded-xl flex items-center justify-center text-sidebar-foreground/50">
-                          <Tag className="h-4 w-4" />
-                        </div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <div className="space-y-1">
-                        <span className="font-semibold">Tags</span>
-                        <div className="text-xs opacity-70">
-                          {tags.map((tag) => tag.name).join(", ")}
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
+        {/* Tags Section */}
+        {tags.length > 0 && (
+          <>
+            <Separator className={cn("bg-sidebar-border")} />
+            {isCollapsed ? (
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="space-y-1 px-2 py-2">
+                  {tags.map((tag) => {
+                    const isTagActive = pathname === "/notes" && tagIdParam === String(tag.id);
+                    const TagLink = (
+                      <Link
+                        key={tag.id}
+                        href={`/notes?tagId=${tag.id}`}
+                        onClick={handleNavClick}
+                        className={cn(
+                          "flex items-center justify-center",
+                          "h-10 w-10 mx-auto rounded-xl",
+                          "transition-all duration-200",
+                          isTagActive
+                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                        )}
+                        aria-current={isTagActive ? "page" : undefined}
+                      >
+                        <LucideHash
+                          className="h-4 w-4"
+                          style={{ color: tag.color || "var(--accent)" }}
+                        />
+                      </Link>
+                    );
+                    return (
+                      <Tooltip key={tag.id}>
+                        <TooltipTrigger asChild>{TagLink}</TooltipTrigger>
+                        <TooltipContent side="right">
+                          <div className="flex items-center gap-2">
+                            <span>{tag.name}</span>
+                            {tag._count && (
+                              <span className="text-xs opacity-60">({tag._count.notes})</span>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
+                  })}
                 </div>
-              ) : (
-                <Collapsible open={tagsOpen} onOpenChange={setTagsOpen}>
-                  <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground/70 transition-colors">
+              </ScrollArea>
+            ) : (
+              <ScrollArea className="flex-1 min-h-0">
+                <div className="space-y-1 px-3 py-2">
+                  <div className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
                     <Tag className="h-3 w-3" />
-                    <span className="flex-1 text-left">Tags</span>
-                    <ChevronRight
-                      className={cn(
-                        "h-3 w-3 transition-transform duration-200",
-                        tagsOpen && "rotate-90"
-                      )}
-                    />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-1 overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+                    <span>Tags</span>
+                  </div>
+                  <div className="space-y-1">
                     {tags.map((tag) => {
                       // Active if we are in /notes?tagId=this_tag.id
                       const isTagActive = pathname === "/notes" && tagIdParam === String(tag.id);
                       return (
-                        <Link
+                        <div
                           key={tag.id}
-                          href={`/notes?tagId=${tag.id}`}
-                          onClick={handleNavClick}
                           className={cn(
-                            "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition-colors",
+                            "group flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors",
                             isTagActive
                               ? "bg-sidebar-accent text-sidebar-accent-foreground"
                               : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                           )}
-                          aria-current={isTagActive ? "page" : undefined}
                         >
-                          <LucideHash
-                            className="h-3 w-3"
-                            style={{ color: tag.color || "var(--accent)" }}
-                          />
-                          <span className="flex-1 truncate">{tag.name}</span>
-                        </Link>
+                          <Link
+                            href={`/notes?tagId=${tag.id}`}
+                            onClick={handleNavClick}
+                            className={cn(
+                              "flex items-center gap-3 flex-1 min-w-0",
+                            )}
+                            aria-current={isTagActive ? "page" : undefined}
+                          >
+                            <LucideHash
+                              className="h-3 w-3 flex-shrink-0"
+                              style={{ color: tag.color || "var(--accent)" }}
+                            />
+                            <span className="flex-1 truncate">{tag.name}</span>
+                          </Link>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                  "h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity",
+                                  "text-sidebar-foreground/50 hover:text-sidebar-foreground"
+                                )}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }}
+                              >
+                                <MoreVertical className="h-3 w-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" side="right">
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleRenameClick(tag);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                                <span>Rename tag</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                variant="destructive"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDeleteClick(tag);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                <span>Delete tag</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                          {tag._count && (
+                            <span className="text-xs text-sidebar-foreground/40 font-medium">
+                              {tag._count.notes}
+                            </span>
+                          )}
+                        </div>
                       );
                     })}
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-            </>
-          )}
-        </ScrollArea>
+                  </div>
+                </div>
+              </ScrollArea>
+            )}
+          </>
+        )}
 
         {/* Footer */}
         <div className="border-t border-sidebar-border p-3 space-y-2">
@@ -380,6 +514,84 @@ export function Sidebar({
             </Button>
           )}
         </div>
+
+        {/* Rename Tag Dialog */}
+        <Dialog open={renameDialogOpen} onOpenChange={setRenameDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Rename Tag</DialogTitle>
+              <DialogDescription>
+                Enter a new name for this tag.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                placeholder="Tag name"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleRenameSubmit();
+                  }
+                }}
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRenameDialogOpen(false);
+                  setSelectedTag(null);
+                  setRenameValue("");
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRenameSubmit}
+                disabled={!renameValue.trim() || renameValue.trim() === selectedTag?.name || updateTagMutation.isPending}
+              >
+                {updateTagMutation.isPending ? "Renaming..." : "Rename"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Tag Dialog */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 rounded-full bg-destructive/10">
+                  <AlertTriangle className="h-5 w-5 text-destructive" />
+                </div>
+                <DialogTitle>Delete Tag</DialogTitle>
+              </div>
+              <DialogDescription>
+                Delete "{selectedTag?.name}"? This will remove it from all notes.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteDialogOpen(false);
+                  setSelectedTag(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteSubmit}
+                disabled={deleteTagMutation.isPending}
+              >
+                {deleteTagMutation.isPending ? "Deleting..." : "Delete"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );

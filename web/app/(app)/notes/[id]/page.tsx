@@ -129,6 +129,7 @@ export default function NoteEditorPage() {
     mutationFn: (data: CreateNoteDto) => createNote(data),
     onSuccess: (newNote) => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
       toast.success("Note created");
       router.replace(`/notes/${newNote.id}`);
     },
@@ -143,6 +144,7 @@ export default function NoteEditorPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
       queryClient.invalidateQueries({ queryKey: ["notes", noteId] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
       setHasUnsavedChanges(false);
       lastSavedRef.current = {
         title,
@@ -162,8 +164,9 @@ export default function NoteEditorPage() {
     mutationFn: () => deleteNote(noteId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
       toast.success("Note moved to trash");
-      router.push("/notes");
+      router.back();
     },
     onError: () => {
       toast.error("Failed to delete note");
@@ -177,9 +180,10 @@ export default function NoteEditorPage() {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
       queryClient.invalidateQueries({ queryKey: ["notes", "archive"] });
       queryClient.invalidateQueries({ queryKey: ["notes", noteId] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
       setIsArchived(true);
       toast.success("Note archived");
-      router.push("/notes");
+      router.back();
     },
     onError: () => {
       toast.error("Failed to archive note");
@@ -193,6 +197,7 @@ export default function NoteEditorPage() {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
       queryClient.invalidateQueries({ queryKey: ["notes", "archive"] });
       queryClient.invalidateQueries({ queryKey: ["notes", noteId] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
       setIsArchived(false);
       toast.success("Note unarchived");
     },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2, RotateCcw, Loader2, AlertTriangle, Pin } from "lucide-react";
+import { Trash2, RotateCcw, Loader2, AlertTriangle, Pin, CheckCircle2 } from "lucide-react";
 import {
   getTrashedNotes,
   restoreNote,
@@ -78,6 +78,7 @@ export default function TrashPage() {
     mutationFn: restoreNote,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
       toast.success("Note restored");
     },
     onError: () => {
@@ -89,6 +90,7 @@ export default function TrashPage() {
     mutationFn: permanentDeleteNote,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes", "trash"] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
       toast.success("Note permanently deleted");
     },
     onError: () => {
@@ -184,6 +186,7 @@ function TrashNoteCard({
   isDeleting,
 }: TrashNoteCardProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [restoreTooltipOpen, setRestoreTooltipOpen] = useState(false);
   const [deleteTooltipOpen, setDeleteTooltipOpen] = useState(false);
   const dialogJustClosedRef = React.useRef(false);
@@ -191,7 +194,23 @@ function TrashNoteCard({
   const handleRestoreClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setRestoreTooltipOpen(false);
+    setRestoreDialogOpen(true);
+  };
+
+  const handleRestoreConfirm = () => {
     onRestore();
+    setRestoreDialogOpen(false);
+  };
+
+  const handleRestoreDialogClose = (open: boolean) => {
+    setRestoreDialogOpen(open);
+    if (!open) {
+      setRestoreTooltipOpen(false);
+      dialogJustClosedRef.current = true;
+      setTimeout(() => {
+        dialogJustClosedRef.current = false;
+      }, 100);
+    }
   };
 
   const handleDeleteButtonClick = (e: React.MouseEvent) => {
@@ -217,6 +236,7 @@ function TrashNoteCard({
       (e.target as HTMLElement).closest("[data-slot='dialog-content']") ||
       (e.target as HTMLElement).closest("[data-slot='dialog-overlay']") ||
       deleteDialogOpen ||
+      restoreDialogOpen ||
       dialogJustClosedRef.current
     ) {
       return;
@@ -329,6 +349,39 @@ function TrashNoteCard({
                 </Tooltip>
               </div>
             </TooltipProvider>
+            <Dialog open={restoreDialogOpen} onOpenChange={handleRestoreDialogClose}>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                      <CheckCircle2 className="h-5 w-5 text-accent" />
+                    </div>
+                    Restore note?
+                  </DialogTitle>
+                  <DialogDescription className="pt-2">
+                    This note will be restored to your notes.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setRestoreDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleRestoreConfirm}
+                    disabled={isRestoring}
+                  >
+                    {isRestoring ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Restore"
+                    )}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <Dialog open={deleteDialogOpen} onOpenChange={handleDialogClose}>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>

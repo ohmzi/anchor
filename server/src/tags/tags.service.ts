@@ -34,7 +34,14 @@ export class TagsService {
       },
       include: {
         _count: {
-          select: { notes: true },
+          select: {
+            notes: {
+              where: {
+                state: 'active',
+                isArchived: false,
+              },
+            },
+          },
         },
       },
     });
@@ -46,7 +53,14 @@ export class TagsService {
       orderBy: { name: 'asc' },
       include: {
         _count: {
-          select: { notes: true },
+          select: {
+            notes: {
+              where: {
+                state: 'active',
+                isArchived: false,
+              },
+            },
+          },
         },
       },
     });
@@ -57,7 +71,14 @@ export class TagsService {
       where: { id },
       include: {
         _count: {
-          select: { notes: true },
+          select: {
+            notes: {
+              where: {
+                state: 'active',
+                isArchived: false,
+              },
+            },
+          },
         },
       },
     });
@@ -93,7 +114,14 @@ export class TagsService {
       data: updateTagDto,
       include: {
         _count: {
-          select: { notes: true },
+          select: {
+            notes: {
+              where: {
+                state: 'active',
+                isArchived: false,
+              },
+            },
+          },
         },
       },
     });
@@ -205,7 +233,14 @@ export class TagsService {
       orderBy: { updatedAt: 'desc' },
       include: {
         _count: {
-          select: { notes: true },
+          select: {
+            notes: {
+              where: {
+                state: 'active',
+                isArchived: false,
+              },
+            },
+          },
         },
       },
     });

@@ -3,6 +3,9 @@ export interface Tag {
   name: string;
   color?: string;
   updatedAt?: string;
+  _count?: {
+    notes: number;
+  };
 }
 
 export interface CreateTagDto {

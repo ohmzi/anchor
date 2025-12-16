@@ -79,6 +79,7 @@ export default function ArchivePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
       queryClient.invalidateQueries({ queryKey: ["notes", "archive"] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
       toast.success("Note unarchived");
     },
     onError: () => {
