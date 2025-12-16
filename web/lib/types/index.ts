@@ -6,7 +6,7 @@ export interface Note {
   content?: string | null;
   isPinned: boolean;
   isArchived: boolean;
-  color?: string | null;
+  background?: string | null;
   state: NoteState;
   createdAt: string;
   updatedAt: string;
@@ -51,7 +51,7 @@ export interface CreateNoteDto {
   content?: string;
   isPinned?: boolean;
   isArchived?: boolean;
-  color?: string;
+  background?: string | null;
   tagIds?: string[];
 }
 
@@ -60,7 +60,7 @@ export interface UpdateNoteDto {
   content?: string;
   isPinned?: boolean;
   isArchived?: boolean;
-  color?: string;
+  background?: string | null;
   tagIds?: string[];
 }
 

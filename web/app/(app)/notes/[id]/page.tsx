@@ -32,6 +32,10 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 import { TagSelector } from "@/components/app/tag-selector";
+import {
+  NoteBackgroundPicker,
+  NoteBackground,
+} from "@/components/note-backgrounds";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { CreateNoteDto, UpdateNoteDto, Note } from "@/lib/types";
@@ -48,6 +52,7 @@ export default function NoteEditorPage() {
   const [content, setContent] = useState("");
   const [isPinned, setIsPinned] = useState(false);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+  const [background, setBackground] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
@@ -57,6 +62,7 @@ export default function NoteEditorPage() {
     content: string;
     isPinned: boolean;
     tagIds: string[];
+    background: string | null;
   } | null>(null);
 
   // Try to get note from sessionStorage first (passed from note card)
@@ -96,11 +102,13 @@ export default function NoteEditorPage() {
       setIsPinned(note.isPinned);
       const tagIds = note.tagIds || note.tags?.map((t) => t.id) || [];
       setSelectedTagIds(tagIds);
+      setBackground(note.background || null);
       lastSavedRef.current = {
         title: note.title,
         content: note.content || "",
         isPinned: note.isPinned,
         tagIds,
+        background: note.background || null,
       };
     }
   }, [note]);
@@ -125,7 +133,13 @@ export default function NoteEditorPage() {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
       queryClient.invalidateQueries({ queryKey: ["notes", noteId] });
       setHasUnsavedChanges(false);
-      lastSavedRef.current = { title, content, isPinned, tagIds: selectedTagIds };
+      lastSavedRef.current = {
+        title,
+        content,
+        isPinned,
+        tagIds: selectedTagIds,
+        background,
+      };
     },
     onError: () => {
       toast.error("Failed to save note");
@@ -156,10 +170,11 @@ export default function NoteEditorPage() {
       title !== lastSavedRef.current.title ||
       content !== lastSavedRef.current.content ||
       isPinned !== lastSavedRef.current.isPinned ||
+      background !== lastSavedRef.current.background ||
       JSON.stringify(selectedTagIds.sort()) !==
       JSON.stringify(lastSavedRef.current.tagIds.sort())
     );
-  }, [title, content, isPinned, selectedTagIds, isNew]);
+  }, [title, content, isPinned, selectedTagIds, background, isNew]);
 
   useEffect(() => {
     setHasUnsavedChanges(checkUnsavedChanges());
@@ -174,6 +189,7 @@ export default function NoteEditorPage() {
         title: title.trim() || "Untitled",
         content: content || undefined,
         isPinned,
+        background: background,
         tagIds: selectedTagIds,
       });
     } else {
@@ -181,6 +197,7 @@ export default function NoteEditorPage() {
         title: title.trim() || "Untitled",
         content: content || undefined,
         isPinned,
+        background: background,
         tagIds: selectedTagIds,
       });
     }
@@ -242,12 +259,19 @@ export default function NoteEditorPage() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="min-h-screen flex flex-col bg-background">
+      <div className="min-h-screen flex flex-col relative">
+        {/* Background covering entire page */}
+        <NoteBackground
+          styleId={background}
+          className="absolute inset-0 min-h-full"
+        />
+
         {/* Header */}
         <header
           className={cn(
             "sticky top-0 z-40 flex h-16 items-center justify-between",
-            "border-b border-border/50 bg-background/80 backdrop-blur-xl px-4 lg:px-6"
+            "border-b border-border/30 backdrop-blur-sm px-4 lg:px-6",
+            "bg-background/60 dark:bg-background/40"
           )}
         >
           <Tooltip>
@@ -269,9 +293,10 @@ export default function NoteEditorPage() {
             <div
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300",
-                isSaving && "bg-muted text-muted-foreground",
-                hasUnsavedChanges && !isSaving && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-                isSaved && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                "backdrop-blur-sm",
+                isSaving && "bg-muted/80 text-muted-foreground",
+                hasUnsavedChanges && !isSaving && "bg-amber-500/20 text-amber-600 dark:text-amber-400",
+                isSaved && "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
               )}
             >
               {isSaving ? (
@@ -293,6 +318,11 @@ export default function NoteEditorPage() {
             </div>
 
             <div className="h-6 w-px bg-border/50 mx-1" />
+
+            <NoteBackgroundPicker
+              selectedBackground={background}
+              onBackgroundChange={setBackground}
+            />
 
             <Tooltip>
               <TooltipTrigger asChild>
@@ -338,36 +368,38 @@ export default function NoteEditorPage() {
         </header>
 
         {/* Content */}
-        <div className="flex-1 max-w-3xl mx-auto w-full px-4 lg:px-6 py-8">
-          {/* Title */}
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Title"
-            className={cn(
-              "!bg-transparent border-0 shadow-none rounded-none",
-              "px-0 h-auto py-2 mb-4",
-              "text-3xl lg:text-4xl font-bold",
-              "placeholder:text-muted-foreground/40",
-              "focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-0"
-            )}
-          />
+        <div className="flex-1 relative">
+          <div className="relative max-w-3xl mx-auto w-full px-4 lg:px-6 py-8">
+            {/* Title */}
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Title"
+              className={cn(
+                "!bg-transparent border-0 shadow-none rounded-none",
+                "px-0 h-auto py-2 mb-4",
+                "text-3xl lg:text-4xl font-bold",
+                "placeholder:text-muted-foreground/40",
+                "focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-0"
+              )}
+            />
 
-          {/* Tags */}
-          <div className="py-3 border-b border-border/30 mb-6">
-            <TagSelector
-              selectedTagIds={selectedTagIds}
-              onTagsChange={setSelectedTagIds}
+            {/* Tags */}
+            <div className="py-3 border-b border-border/30 mb-6">
+              <TagSelector
+                selectedTagIds={selectedTagIds}
+                onTagsChange={setSelectedTagIds}
+              />
+            </div>
+
+            {/* Content */}
+            <RichTextEditor
+              value={content}
+              onChange={setContent}
+              placeholder="Start typing your thoughts..."
+              className={cn("w-full", "min-h-[calc(100vh-320px)]")}
             />
           </div>
-
-          {/* Content */}
-          <RichTextEditor
-            value={content}
-            onChange={setContent}
-            placeholder="Start typing your thoughts..."
-            className={cn("w-full", "min-h-[calc(100vh-320px)]")}
-          />
         </div>
 
         {/* Delete Dialog */}
