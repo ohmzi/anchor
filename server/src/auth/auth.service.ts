@@ -27,10 +27,23 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(registerDto.password, 10);
 
+    // Check if this is the first user (no admins exist)
+    const adminCount = await this.prisma.user.count({
+      where: { isAdmin: true },
+    });
+
     const user = await this.prisma.user.create({
       data: {
         email: registerDto.email,
         password: hashedPassword,
+        isAdmin: adminCount === 0, // First user becomes admin
+      },
+      select: {
+        id: true,
+        email: true,
+        isAdmin: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -44,7 +57,7 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
-      select: { id: true, email: true, password: true },
+      select: { id: true, email: true, password: true, isAdmin: true },
     });
 
     if (!user) {

@@ -6,6 +6,7 @@ import { NotesModule } from './notes/notes.module';
 import { TagsModule } from './tags/tags.module';
 import { TasksModule } from './tasks/tasks.module';
 import { HealthModule } from './health/health.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { HealthModule } from './health/health.module';
     TagsModule,
     TasksModule,
     HealthModule,
+    AdminModule,
   ],
 })
 export class AppModule { }

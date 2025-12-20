@@ -21,6 +21,7 @@ import {
   MoreVertical,
   Pencil,
   AlertTriangle,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -46,7 +47,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { AnchorIcon } from "@/components/ui/anchor-icon";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/features/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -278,180 +278,183 @@ export function Sidebar({
           )}
         </div>
 
-        {/* Navigation */}
-        <div className={cn("space-y-1", isCollapsed ? "px-2 py-2" : "px-3 py-2")}>
-          {navItems.map((item) => {
-            const isActive = pathname === item.href && !(item.href === "/notes" && tagIdParam);
-            const NavLink = (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={handleNavClick}
-                className={cn(
-                  "flex items-center rounded-xl text-sm font-medium transition-all duration-200",
-                  isCollapsed
-                    ? "justify-center h-10 w-10 mx-auto"
-                    : "gap-3 px-3 py-2.5",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                )}
-                aria-current={isActive ? "page" : undefined}
-              >
-                <item.icon className="h-4 w-4 flex-shrink-0" />
-                {!isCollapsed && item.label}
-              </Link>
-            );
-
-            if (isCollapsed) {
-              return (
-                <Tooltip key={item.href}>
-                  <TooltipTrigger asChild>{NavLink}</TooltipTrigger>
-                  <TooltipContent side="right">{item.label}</TooltipContent>
-                </Tooltip>
+        {/* Middle Content - Navigation and Tags */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          {/* Navigation */}
+          <div className={cn("space-y-1", isCollapsed ? "px-2 py-2" : "px-3 py-2")}>
+            {navItems.map((item) => {
+              const isActive = pathname === item.href && !(item.href === "/notes" && tagIdParam);
+              const NavLink = (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={handleNavClick}
+                  className={cn(
+                    "flex items-center rounded-xl text-sm font-medium transition-all duration-200",
+                    isCollapsed
+                      ? "justify-center h-10 w-10 mx-auto"
+                      : "gap-3 px-3 py-2.5",
+                    isActive
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  )}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  <item.icon className="h-4 w-4 flex-shrink-0" />
+                  {!isCollapsed && item.label}
+                </Link>
               );
-            }
 
-            return NavLink;
-          })}
-        </div>
+              if (isCollapsed) {
+                return (
+                  <Tooltip key={item.href}>
+                    <TooltipTrigger asChild>{NavLink}</TooltipTrigger>
+                    <TooltipContent side="right">{item.label}</TooltipContent>
+                  </Tooltip>
+                );
+              }
 
-        {/* Tags Section */}
-        {tags.length > 0 && (
-          <>
-            <Separator className={cn("bg-sidebar-border")} />
-            {isCollapsed ? (
-              <ScrollArea className="flex-1 min-h-0">
-                <div className="space-y-1 px-2 py-2">
-                  {tags.map((tag) => {
-                    const isTagActive = pathname === "/notes" && tagIdParam === String(tag.id);
-                    const TagLink = (
-                      <Link
-                        key={tag.id}
-                        href={`/notes?tagId=${tag.id}`}
-                        onClick={handleNavClick}
-                        className={cn(
-                          "flex items-center justify-center",
-                          "h-10 w-10 mx-auto rounded-xl",
-                          "transition-all duration-200",
-                          isTagActive
-                            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
-                        )}
-                        aria-current={isTagActive ? "page" : undefined}
-                      >
-                        <LucideHash
-                          className="h-4 w-4"
-                          style={{ color: tag.color || "var(--accent)" }}
-                        />
-                      </Link>
-                    );
-                    return (
-                      <Tooltip key={tag.id}>
-                        <TooltipTrigger asChild>{TagLink}</TooltipTrigger>
-                        <TooltipContent side="right">
-                          <div className="flex items-center gap-2">
-                            <span>{tag.name}</span>
-                            {tag._count && (
-                              <span className="text-xs opacity-60">({tag._count.notes})</span>
-                            )}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            ) : (
-              <ScrollArea className="flex-1 min-h-0">
-                <div className="space-y-1 px-3 py-2">
-                  <div className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-                    <Tag className="h-3 w-3" />
-                    <span>Tags</span>
-                  </div>
-                  <div className="space-y-1">
+              return NavLink;
+            })}
+          </div>
+
+          {/* Tags Section */}
+          {tags.length > 0 && (
+            <>
+              <Separator className={cn("bg-sidebar-border")} />
+              {isCollapsed ? (
+                <ScrollArea className="flex-1 min-h-0">
+                  <div className="space-y-1 px-2 py-2">
                     {tags.map((tag) => {
-                      // Active if we are in /notes?tagId=this_tag.id
                       const isTagActive = pathname === "/notes" && tagIdParam === String(tag.id);
-                      return (
-                        <div
+                      const TagLink = (
+                        <Link
                           key={tag.id}
+                          href={`/notes?tagId=${tag.id}`}
+                          onClick={handleNavClick}
                           className={cn(
-                            "group flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors",
+                            "flex items-center justify-center",
+                            "h-10 w-10 mx-auto rounded-xl",
+                            "transition-all duration-200",
                             isTagActive
                               ? "bg-sidebar-accent text-sidebar-accent-foreground"
                               : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                           )}
+                          aria-current={isTagActive ? "page" : undefined}
                         >
-                          <Link
-                            href={`/notes?tagId=${tag.id}`}
-                            onClick={handleNavClick}
-                            className={cn(
-                              "flex items-center gap-3 flex-1 min-w-0",
-                            )}
-                            aria-current={isTagActive ? "page" : undefined}
-                          >
-                            <LucideHash
-                              className="h-3 w-3 flex-shrink-0"
-                              style={{ color: tag.color || "var(--accent)" }}
-                            />
-                            <span className="flex-1 truncate">{tag.name}</span>
-                          </Link>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className={cn(
-                                  "h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity",
-                                  "text-sidebar-foreground/50 hover:text-sidebar-foreground"
-                                )}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                }}
-                              >
-                                <MoreVertical className="h-3 w-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" side="right">
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleRenameClick(tag);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                                <span>Rename tag</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleDeleteClick(tag);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                <span>Delete tag</span>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                          {tag._count && (
-                            <span className="text-xs text-sidebar-foreground/40 font-medium">
-                              {tag._count.notes}
-                            </span>
-                          )}
-                        </div>
+                          <LucideHash
+                            className="h-4 w-4"
+                            style={{ color: tag.color || "var(--accent)" }}
+                          />
+                        </Link>
+                      );
+                      return (
+                        <Tooltip key={tag.id}>
+                          <TooltipTrigger asChild>{TagLink}</TooltipTrigger>
+                          <TooltipContent side="right">
+                            <div className="flex items-center gap-2">
+                              <span>{tag.name}</span>
+                              {tag._count && (
+                                <span className="text-xs opacity-60">({tag._count.notes})</span>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
                       );
                     })}
                   </div>
-                </div>
-              </ScrollArea>
-            )}
-          </>
-        )}
+                </ScrollArea>
+              ) : (
+                <ScrollArea className="flex-1 min-h-0">
+                  <div className="space-y-1 px-3 py-2">
+                    <div className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+                      <Tag className="h-3 w-3" />
+                      <span>Tags</span>
+                    </div>
+                    <div className="space-y-1">
+                      {tags.map((tag) => {
+                        // Active if we are in /notes?tagId=this_tag.id
+                        const isTagActive = pathname === "/notes" && tagIdParam === String(tag.id);
+                        return (
+                          <div
+                            key={tag.id}
+                            className={cn(
+                              "group flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition-colors",
+                              isTagActive
+                                ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                            )}
+                          >
+                            <Link
+                              href={`/notes?tagId=${tag.id}`}
+                              onClick={handleNavClick}
+                              className={cn(
+                                "flex items-center gap-3 flex-1 min-w-0",
+                              )}
+                              aria-current={isTagActive ? "page" : undefined}
+                            >
+                              <LucideHash
+                                className="h-3 w-3 flex-shrink-0"
+                                style={{ color: tag.color || "var(--accent)" }}
+                              />
+                              <span className="flex-1 truncate">{tag.name}</span>
+                            </Link>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    "h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity",
+                                    "text-sidebar-foreground/50 hover:text-sidebar-foreground"
+                                  )}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                  }}
+                                >
+                                  <MoreVertical className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" side="right">
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleRenameClick(tag);
+                                  }}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  <span>Rename tag</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleDeleteClick(tag);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span>Delete tag</span>
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            {tag._count && (
+                              <span className="text-xs text-sidebar-foreground/40 font-medium">
+                                {tag._count.notes}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </ScrollArea>
+              )}
+            </>
+          )}
+        </div>
 
         {/* Footer */}
         <div className="border-t border-sidebar-border p-3 space-y-2">
@@ -462,6 +465,45 @@ export function Sidebar({
                 {user.email}
               </p>
             </div>
+          )}
+
+          {/* Admin */}
+          {user?.isAdmin && (
+            <>
+              {isCollapsed ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Link
+                      href="/admin"
+                      onClick={handleNavClick}
+                      className={cn(
+                        "flex items-center justify-center",
+                        "w-10 h-10 mx-auto rounded-xl",
+                        "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+                        "transition-all duration-200"
+                      )}
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Admin</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Link
+                  href="/admin"
+                  onClick={handleNavClick}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200",
+                    pathname === "/admin"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                  )}
+                >
+                  <Settings className="h-4 w-4" />
+                  Admin
+                </Link>
+              )}
+            </>
           )}
 
           {/* Theme toggle */}
