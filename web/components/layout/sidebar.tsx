@@ -50,6 +50,7 @@ import { Input } from "@/components/ui/input";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/features/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { HTTPError } from "ky";
 import { getTags, updateTag, deleteTag, type Tag as TagType } from "@/features/tags";
 
 interface SidebarProps {
@@ -76,6 +77,7 @@ export function Sidebar({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTag, setSelectedTag] = useState<TagType | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
 
   const { data: tags = [] } = useQuery({
     queryKey: ["tags"],
@@ -90,6 +92,21 @@ export function Sidebar({
       setRenameDialogOpen(false);
       setSelectedTag(null);
       setRenameValue("");
+      setRenameError(null);
+    },
+    onError: async (error: Error) => {
+      let message = "Failed to rename tag";
+      if (error instanceof HTTPError) {
+        try {
+          const errorBody = await error.response.json();
+          message = errorBody.message || message;
+        } catch {
+          // If we can't parse the error, use the default message
+        }
+      } else if (error.message) {
+        message = error.message;
+      }
+      setRenameError(message);
     },
   });
 
@@ -112,6 +129,7 @@ export function Sidebar({
   const handleRenameClick = (tag: TagType) => {
     setSelectedTag(tag);
     setRenameValue(tag.name);
+    setRenameError(null);
     setRenameDialogOpen(true);
   };
 
@@ -122,7 +140,16 @@ export function Sidebar({
 
   const handleRenameSubmit = () => {
     if (selectedTag && renameValue.trim() && renameValue.trim() !== selectedTag.name) {
+      setRenameError(null);
       updateTagMutation.mutate({ id: selectedTag.id, name: renameValue.trim() });
+    }
+  };
+
+  const handleRenameValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRenameValue(e.target.value);
+    // Clear error when user starts typing
+    if (renameError) {
+      setRenameError(null);
     }
   };
 
@@ -570,18 +597,26 @@ export function Sidebar({
                 Enter a new name for this tag.
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4">
+            <div className="py-4 space-y-2">
               <Input
                 value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
+                onChange={handleRenameValueChange}
                 placeholder="Tag name"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     handleRenameSubmit();
                   }
                 }}
+                className={cn(
+                  renameError && "border-destructive focus:border-destructive focus:ring-destructive/20"
+                )}
                 autoFocus
               />
+              {renameError && (
+                <p className="text-xs text-destructive px-1">
+                  {renameError}
+                </p>
+              )}
             </div>
             <DialogFooter>
               <Button
@@ -590,12 +625,14 @@ export function Sidebar({
                   setRenameDialogOpen(false);
                   setSelectedTag(null);
                   setRenameValue("");
+                  setRenameError(null);
                 }}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleRenameSubmit}
+                variant={renameError ? "destructive" : "default"}
                 disabled={!renameValue.trim() || renameValue.trim() === selectedTag?.name || updateTagMutation.isPending}
               >
                 {updateTagMutation.isPending ? "Renaming..." : "Rename"}
@@ -615,7 +652,7 @@ export function Sidebar({
                 <DialogTitle>Delete Tag</DialogTitle>
               </div>
               <DialogDescription>
-                Delete "{selectedTag?.name}"? This will remove it from all notes.
+                Delete <span className="font-semibold">{selectedTag?.name}</span>? This will remove it from all notes. This action cannot be undone.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

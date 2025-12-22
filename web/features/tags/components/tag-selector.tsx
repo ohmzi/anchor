@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Check, X, Loader2 } from "lucide-react";
-import { getTags, createTag } from "@/features/tags";
+import { HTTPError } from "ky";
+import { getTags, createTag, generateRandomTagColor } from "@/features/tags";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ export function TagSelector({
 }: TagSelectorProps) {
   const [open, setOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: tags = [], isLoading } = useQuery({
@@ -40,6 +42,21 @@ export function TagSelector({
       queryClient.invalidateQueries({ queryKey: ["tags"] });
       onTagsChange([...selectedTagIds, newTag.id]);
       setNewTagName("");
+      setErrorMessage(null);
+    },
+    onError: async (error: Error) => {
+      let message = "Failed to create tag";
+      if (error instanceof HTTPError) {
+        try {
+          const errorBody = await error.response.json();
+          message = errorBody.message || message;
+        } catch {
+          // If we can't parse the error, use the default message
+        }
+      } else if (error.message) {
+        message = error.message;
+      }
+      setErrorMessage(message);
     },
   });
 
@@ -55,7 +72,19 @@ export function TagSelector({
 
   const handleCreateTag = () => {
     if (newTagName.trim()) {
-      createTagMutation.mutate({ name: newTagName.trim() });
+      setErrorMessage(null);
+      createTagMutation.mutate({
+        name: newTagName.trim(),
+        color: generateRandomTagColor(),
+      });
+    }
+  };
+
+  const handleTagNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewTagName(e.target.value);
+    // Clear error when user starts typing
+    if (errorMessage) {
+      setErrorMessage(null);
     }
   };
 
@@ -111,7 +140,11 @@ export function TagSelector({
               Add tag
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80 p-0 shadow-lg border-border/40" align="start">
+          <PopoverContent className="w-80 p-0 shadow-lg border-border/40" align="start"
+            onOpenAutoFocus={(e) => {
+              // Prevent default auto-focus on first element
+              e.preventDefault();
+            }}>
             <div className="flex flex-col">
               {/* Header */}
               <div className="px-4 py-3 border-b border-border/40 bg-muted/30">
@@ -173,33 +206,46 @@ export function TagSelector({
 
                   {/* Create New Tag */}
                   <div className="border-t border-border/40 p-4 bg-background/50">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <Input
-                          placeholder="Create new tag..."
-                          value={newTagName}
-                          onChange={(e) => setNewTagName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              handleCreateTag();
-                            }
-                          }}
-                          className="h-10 text-sm border-border/40 focus:border-accent/40 focus:ring-accent/20"
-                        />
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <Input
+                            placeholder="Create new tag..."
+                            value={newTagName}
+                            onChange={handleTagNameChange}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleCreateTag();
+                              }
+                            }}
+                            className={cn(
+                              "h-10 text-sm border-border/40 focus:border-accent/40 focus:ring-accent/20",
+                              errorMessage && "border-destructive focus:border-destructive focus:ring-destructive/20"
+                            )}
+                          />
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={errorMessage ? "destructive" : "default"}
+                          className="h-10 w-10 p-0 shrink-0"
+                          onClick={handleCreateTag}
+                          disabled={!newTagName.trim() || createTagMutation.isPending}
+                        >
+                          {createTagMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : errorMessage ? (
+                            <X className="h-4 w-4" />
+                          ) : (
+                            <Check className="h-4 w-4" />
+                          )}
+                        </Button>
                       </div>
-                      <Button
-                        size="sm"
-                        className="h-10 w-10 p-0 shrink-0"
-                        onClick={handleCreateTag}
-                        disabled={!newTagName.trim() || createTagMutation.isPending}
-                      >
-                        {createTagMutation.isPending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Check className="h-4 w-4" />
-                        )}
-                      </Button>
+                      {errorMessage && (
+                        <p className="text-xs text-destructive px-1">
+                          {errorMessage}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </>

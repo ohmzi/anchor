@@ -41,10 +41,7 @@ interface NoteEditorHeaderProps {
   onRestoreClick: () => void;
   onPermanentDeleteClick: () => void;
   restorePending?: boolean;
-  deletePending?: boolean;
   permanentDeletePending?: boolean;
-  archivePending?: boolean;
-  unarchivePending?: boolean;
 }
 
 export function NoteEditorHeader({
@@ -64,10 +61,7 @@ export function NoteEditorHeader({
   onRestoreClick,
   onPermanentDeleteClick,
   restorePending = false,
-  deletePending = false,
   permanentDeletePending = false,
-  archivePending = false,
-  unarchivePending = false,
 }: NoteEditorHeaderProps) {
   return (
     <TooltipProvider delayDuration={0}>
@@ -101,8 +95,8 @@ export function NoteEditorHeader({
                 "backdrop-blur-sm",
                 isSaving && "bg-muted/80 text-muted-foreground",
                 hasUnsavedChanges &&
-                  !isSaving &&
-                  "bg-amber-500/20 text-amber-600 dark:text-amber-400",
+                !isSaving &&
+                "bg-amber-500/20 text-amber-600 dark:text-amber-400",
                 isSaved && "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
               )}
             >

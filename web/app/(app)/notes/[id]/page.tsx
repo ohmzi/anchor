@@ -351,10 +351,7 @@ export default function NoteEditorPage() {
         onRestoreClick={() => setRestoreDialogOpen(true)}
         onPermanentDeleteClick={() => setPermanentDeleteDialogOpen(true)}
         restorePending={restoreMutation.isPending}
-        deletePending={deleteMutation.isPending}
         permanentDeletePending={permanentDeleteMutation.isPending}
-        archivePending={archiveMutation.isPending}
-        unarchivePending={unarchiveMutation.isPending}
       />
 
       {/* Read-only Banner */}
