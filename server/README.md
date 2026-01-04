@@ -66,13 +66,36 @@ pnpm run test:e2e
 ### Auth
 - `POST /api/auth/register` - Register a new user
 - `POST /api/auth/login` - Login
+- `GET /api/auth/me` - Get current user (requires authentication)
 
 ### Notes
-- `GET /api/notes` - Get all notes (supports `?search=term`)
+- `GET /api/notes` - Get all notes (supports `?search=term` and `?tagId=id`)
+- `GET /api/notes/trash` - Get all trashed notes
+- `GET /api/notes/archive` - Get all archived notes
 - `POST /api/notes` - Create a note
 - `GET /api/notes/:id` - Get a specific note
 - `PATCH /api/notes/:id` - Update a note
-- `DELETE /api/notes/:id` - Delete a note
+- `DELETE /api/notes/:id` - Delete a note (soft delete)
 - `POST /api/notes/sync` - Sync notes with client
 - `PATCH /api/notes/:id/restore` - Restore a note from trash
 - `DELETE /api/notes/:id/permanent` - Permanently delete a note
+
+### Tags
+- `GET /api/tags` - Get all tags
+- `POST /api/tags` - Create a tag
+- `GET /api/tags/:id` - Get a specific tag
+- `GET /api/tags/:id/notes` - Get all notes with a specific tag
+- `PATCH /api/tags/:id` - Update a tag
+- `DELETE /api/tags/:id` - Delete a tag
+- `POST /api/tags/sync` - Sync tags with client
+
+### Admin (requires admin privileges)
+- `GET /api/admin/stats` - Get server statistics
+- `GET /api/admin/users` - Get all users (supports `?skip=n` and `?take=n`)
+- `POST /api/admin/users` - Create a new user
+- `PATCH /api/admin/users/:id` - Update a user
+- `DELETE /api/admin/users/:id` - Delete a user
+- `POST /api/admin/users/:id/reset-password` - Reset a user's password
+
+### Health
+- `GET /api/health` - Health check endpoint

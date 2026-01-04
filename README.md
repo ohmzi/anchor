@@ -1,12 +1,18 @@
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/zhfahim/anchor/main/web/public/icons/anchor_icon.png" alt="Anchor" width="120" height="120">
+
 # Anchor
 
-Anchor is an offline-first, self-hostable note-taking application. It focuses on speed, privacy, simplicity, and reliability across mobile and web. Notes are stored locally, editable offline, and synced across devices when online.
+**An offline-first, self-hostable note taking application**
 
-This repository includes:
-- **Mobile App** (Flutter)
-- **Web App** (Next.js)
-- **Backend Server** (Nest.js)
-- **Docker Compose** for self-hosting
+[![Version](https://img.shields.io/github/v/release/zhfahim/anchor?label=version)](https://github.com/zhfahim/anchor/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker)](https://github.com/zhfahim/anchor)
+
+Anchor focuses on speed, privacy, simplicity, and reliability across mobile and web. Notes are stored locally, editable offline, and synced across devices when online.
+
+</div>
 
 
 ## Features
@@ -15,6 +21,7 @@ This repository includes:
 - **Tags System** - Organize notes with custom tags and colors
 - **Note Backgrounds** - Customize notes with solid colors and patterns
 - **Pin Notes** - Pin important notes for quick access
+- **Archive Notes** - Archive notes for later reference
 - **Search** - Search notes locally by title or content
 - **Trash** - Soft delete notes with recovery period
 - **Offline-First** - All edits work offline with local storage
@@ -22,49 +29,28 @@ This repository includes:
 - **Dark Mode** - Beautiful dark and light themes
 
 
-## Tech Stack
+## Self Hosting With Docker
 
-### Mobile (Flutter)
-- Flutter (latest stable)
-- Riverpod (state management and DI)
-- Drift (local offline database)
-- Dio (network client)
-- json_serializable (data models)
-- connectivity_plus (online/offline detection)
-- GoRouter (navigation)
-- Flutter Quill (rich text editor)
+### Option 1: Using Pre-built Image (Recommended)
 
-### Web (Next.js)
-- Next.js 16 (App Router)
-- Tailwind CSS (styling)
-- shadcn/ui (UI components, Radix UI primitives)
-- Zustand (state management)
-- TanStack Query (data fetching)
-- ky (network client)
-- react-quill-new (rich text editor)
-- Lucide React (icons)
-- date-fns (date formatting)
+1. **Create a `docker-compose.yml` file:**
+   ```yaml
+   services:
+     anchor:
+       image: ghcr.io/zhfahim/anchor:latest
+       container_name: anchor
+       restart: unless-stopped
+       ports:
+         - "3000:3000"
+       volumes:
+         - anchor_data:/data
 
-### Backend (Nest.js)
-- Nest.js (modular server framework)
-- Prisma (ORM)
-- PostgreSQL (database)
-- JWT authentication
-- REST API endpoints
-- Class Validator (input validation)
-- Helmet and rate limiting (security)
-
-
-## Self-Hosting With Docker
-
-1. **Clone the project:**
-   ```bash
-   git clone https://github.com/zhfahim/anchor.git
-   cd anchor
+   volumes:
+     anchor_data:
    ```
 
 2. **(Optional) Configure environment:**
-   Copy `.env.example` to `.env` and adjust values. Most users can skip this step - defaults work out of the box.
+   Add environment variables to the `environment` section. Most users can skip this step - defaults work out of the box.
 
    Available options:
    | Variable | Default | Description |
@@ -84,6 +70,23 @@ This repository includes:
 4. **Access the app:**
    Open http://localhost:3000
 
+### Option 2: Building from Source
+
+If you want to build from source or customize the image:
+
+1. **Clone the project:**
+   ```bash
+   git clone https://github.com/zhfahim/anchor.git
+   cd anchor
+   ```
+
+2. **Start the container:**
+   ```bash
+   docker compose up -d
+   ```
+
+   The `docker-compose.yml` file will build the image from source automatically.
+
 
 ## Roadmap
 
@@ -94,6 +97,13 @@ Future planned features:
 - End-to-end encryption
 - Real-time collaboration
 - Multi-user shared notes
+
+
+## Tech Stack
+
+- **Backend**: Nest.js, PostgreSQL, Prisma
+- **Mobile**: Flutter
+- **Web**: Next.js, TypeScript
 
 
 ## Contributing
@@ -116,5 +126,4 @@ Future planned features:
 
 ## License
 
-Anchor will be released under an open-source license.  
-License information will be added soon.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

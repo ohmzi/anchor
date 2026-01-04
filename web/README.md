@@ -8,11 +8,13 @@ A modern, feature-rich note-taking web application built with Next.js, React, an
 - **Tags System** - Organize notes with custom tags and colors
 - **Note Backgrounds** - Customize notes with solid colors and patterns
 - **Pin Notes** - Pin important notes for quick access
+- **Archive Notes** - Archive notes for later reference
 - **Search** - Quickly find notes by title or content
 - **Trash** - Soft delete notes with 30-day recovery period
 - **Dark Mode** - Beautiful dark and light themes
 - **Responsive Design** - Works seamlessly on desktop and mobile devices
 - **Authentication** - Secure user authentication and session management
+- **Admin Panel** - User management for admin users
 
 ## Tech Stack
 
@@ -53,15 +55,18 @@ docker compose -f docker-compose.dev.yml up -d
 pnpm install
 ```
 
-3. Set up environment variables:
+3. Set up environment variables (optional):
+The web app uses Next.js rewrites to proxy API requests. For development, you can optionally set:
 ```bash
-cp .env.example .env.local
+# Create .env.local if needed
 ```
 
-Edit `.env.local` and add your API URL:
+Edit `.env.local` (if using a custom server URL):
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3001
+SERVER_URL=http://localhost:3001
 ```
+
+**Note**: By default, the app proxies `/api/*` requests to `http://127.0.0.1:3001/api/*` via Next.js rewrites. The `SERVER_URL` environment variable is only needed if your backend runs on a different host/port.
 
 4. Run the development server:
 ```bash
@@ -77,7 +82,9 @@ web/
 ├── app/                     # Next.js App Router pages
 │   ├── (app)/               # Authenticated routes
 │   │   ├── notes/           # Notes pages
-│   │   └── trash/           # Trash page
+│   │   ├── archive/         # Archive page
+│   │   ├── trash/           # Trash page
+│   │   └── admin/           # Admin page (if admin user)
 │   └── (auth)/              # Authentication routes
 │       ├── login/
 │       └── register/
@@ -113,7 +120,9 @@ web/
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `NEXT_PUBLIC_API_URL` | Backend API URL | `http://localhost:3001` |
+| `SERVER_URL` | Backend API URL (used for Next.js rewrites) | `http://127.0.0.1:3001` |
+
+**Note**: The web app uses Next.js rewrites to proxy `/api/*` requests to the backend server. Client-side code makes requests to `/api/*` which are automatically rewritten to the backend. The `SERVER_URL` environment variable is only needed if your backend runs on a different host/port than the default.
 
 ## Development
 
