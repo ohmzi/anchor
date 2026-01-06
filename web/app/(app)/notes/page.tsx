@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Masonry from "react-masonry-css";
 import {
   Sparkles,
@@ -13,15 +13,30 @@ import {
   Grid3x3,
   LayoutGrid,
   List,
-  Pin
+  Pin,
+  Archive,
+  Trash2,
+  CheckCircle2,
+  Circle,
+  CircleCheck
 } from "lucide-react";
-import { getNotes, deltaToFullPlainText } from "@/features/notes";
+import {
+  getNotes,
+  deltaToFullPlainText,
+  bulkDeleteNotes,
+  bulkArchiveNotes,
+  useSelectionMode
+} from "@/features/notes";
 import { getTags } from "@/features/tags";
 import { Header } from "@/components/layout";
 import { NoteCard } from "@/features/notes";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { BulkDeleteDialog, BulkArchiveDialog } from "@/features/notes";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import Link from "next/link";
 
 const masonryBreakpoints = {
@@ -38,6 +53,7 @@ type ViewMode = "masonry" | "grid" | "list";
 export default function NotesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const tagIdParam = searchParams.get("tagId");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
@@ -48,11 +64,34 @@ export default function NotesPage() {
     }
     return "masonry";
   });
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedNoteIds, setSelectedNoteIds] = useState<Set<string>>(new Set());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
 
   // Save view mode preference
   useEffect(() => {
     localStorage.setItem("notes-view-mode", viewMode);
   }, [viewMode]);
+
+  // Clear selection when exiting selection mode
+  useEffect(() => {
+    if (!isSelectionMode) {
+      setSelectedNoteIds(new Set());
+      setLastSelectedIndex(null);
+    }
+  }, [isSelectionMode]);
+
+  // Handle keyboard shortcuts for selection mode
+  useSelectionMode({
+    isSelectionMode,
+    onExit: () => {
+      setIsSelectionMode(false);
+      setSelectedNoteIds(new Set());
+      setLastSelectedIndex(null);
+    },
+  });
 
   const { data: notes = [], isLoading: notesLoading } = useQuery({
     queryKey: ["notes", tagIdParam],
@@ -97,19 +136,113 @@ export default function NotesPage() {
     ? tags.find((tag) => tag.id === tagIdParam)
     : null;
 
+  // Handle note selection with keyboard modifiers
+  const handleNoteSelect = (
+    noteId: string,
+    index: number,
+    ctrlOrCmd: boolean,
+    shift: boolean
+  ) => {
+    if (shift && lastSelectedIndex !== null) {
+      // Range selection
+      const start = Math.min(lastSelectedIndex, index);
+      const end = Math.max(lastSelectedIndex, index);
+      const notesToSelect = filteredNotes.slice(start, end + 1);
+
+      setSelectedNoteIds((prev) => {
+        const next = new Set(prev);
+        notesToSelect.forEach((note) => {
+          next.add(note.id);
+        });
+        return next;
+      });
+    } else if (ctrlOrCmd || isSelectionMode) {
+      // Toggle individual selection (with CTRL/CMD or in selection mode)
+      setSelectedNoteIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(noteId)) {
+          next.delete(noteId);
+        } else {
+          next.add(noteId);
+        }
+        return next;
+      });
+      setLastSelectedIndex(index);
+    } else {
+      // Single selection (replace all) - only when not in selection mode and no modifiers
+      setSelectedNoteIds(new Set([noteId]));
+      setLastSelectedIndex(index);
+    }
+  };
+
+  // Select all / deselect all
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedNoteIds(new Set(filteredNotes.map((note) => note.id)));
+    } else {
+      setSelectedNoteIds(new Set());
+    }
+  };
+
+  const allSelected = filteredNotes.length > 0 && selectedNoteIds.size === filteredNotes.length;
+  const someSelected = selectedNoteIds.size > 0 && selectedNoteIds.size < filteredNotes.length;
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (noteIds: string[]) => bulkDeleteNotes(noteIds),
+    onSuccess: (_, noteIds) => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      toast.success(`${noteIds.length} note${noteIds.length > 1 ? "s" : ""} moved to trash`);
+      setSelectedNoteIds(new Set());
+      setIsSelectionMode(false);
+      setDeleteDialogOpen(false);
+    },
+    onError: () => {
+      toast.error("Failed to delete notes");
+    },
+  });
+
+  // Bulk archive mutation
+  const bulkArchiveMutation = useMutation({
+    mutationFn: (noteIds: string[]) => bulkArchiveNotes(noteIds),
+    onSuccess: (_, noteIds) => {
+      queryClient.invalidateQueries({ queryKey: ["notes"] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+      toast.success(`${noteIds.length} note${noteIds.length > 1 ? "s" : ""} archived`);
+      setSelectedNoteIds(new Set());
+      setIsSelectionMode(false);
+      setArchiveDialogOpen(false);
+    },
+    onError: () => {
+      toast.error("Failed to archive notes");
+    },
+  });
+
 
   const renderNotesGrid = (notesToRender: typeof filteredNotes, startIndex = 0) => {
     if (viewMode === "list") {
       return (
         <div className="space-y-2">
-          {notesToRender.map((note, index) => (
-            <NoteCard
-              key={note.id}
-              note={note}
-              index={startIndex + index}
-              viewMode="list"
-            />
-          ))}
+          {notesToRender.map((note, index) => {
+            const globalIndex = startIndex + index;
+            return (
+              <NoteCard
+                key={note.id}
+                note={note}
+                index={globalIndex}
+                viewMode="list"
+                isSelectionMode={isSelectionMode}
+                isSelected={selectedNoteIds.has(note.id)}
+                onSelectChange={(noteId, ctrlOrCmd, shift) => {
+                  handleNoteSelect(noteId, globalIndex, ctrlOrCmd, shift);
+                  if (!isSelectionMode && (ctrlOrCmd || shift)) {
+                    setIsSelectionMode(true);
+                  }
+                }}
+              />
+            );
+          })}
         </div>
       );
     }
@@ -117,14 +250,25 @@ export default function NotesPage() {
     if (viewMode === "grid") {
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {notesToRender.map((note, index) => (
-            <NoteCard
-              key={note.id}
-              note={note}
-              index={startIndex + index}
-              viewMode="grid"
-            />
-          ))}
+          {notesToRender.map((note, index) => {
+            const globalIndex = startIndex + index;
+            return (
+              <NoteCard
+                key={note.id}
+                note={note}
+                index={globalIndex}
+                viewMode="grid"
+                isSelectionMode={isSelectionMode}
+                isSelected={selectedNoteIds.has(note.id)}
+                onSelectChange={(noteId, ctrlOrCmd, shift) => {
+                  handleNoteSelect(noteId, globalIndex, ctrlOrCmd, shift);
+                  if (!isSelectionMode && (ctrlOrCmd || shift)) {
+                    setIsSelectionMode(true);
+                  }
+                }}
+              />
+            );
+          })}
         </div>
       );
     }
@@ -136,14 +280,25 @@ export default function NotesPage() {
         className="masonry-grid"
         columnClassName="masonry-grid-column"
       >
-        {notesToRender.map((note, index) => (
-          <NoteCard
-            key={note.id}
-            note={note}
-            index={startIndex + index}
-            viewMode="masonry"
-          />
-        ))}
+        {notesToRender.map((note, index) => {
+          const globalIndex = startIndex + index;
+          return (
+            <NoteCard
+              key={note.id}
+              note={note}
+              index={globalIndex}
+              viewMode="masonry"
+              isSelectionMode={isSelectionMode}
+              isSelected={selectedNoteIds.has(note.id)}
+              onSelectChange={(noteId, ctrlOrCmd, shift) => {
+                handleNoteSelect(noteId, globalIndex, ctrlOrCmd, shift);
+                if (!isSelectionMode && (ctrlOrCmd || shift)) {
+                  setIsSelectionMode(true);
+                }
+              }}
+            />
+          );
+        })}
       </Masonry>
     );
   };
@@ -154,12 +309,105 @@ export default function NotesPage() {
 
       <div className="flex-1">
         <div className="p-4 lg:p-8">
+          {/* Bulk Action Toolbar */}
+          {isSelectionMode && (
+            <div className="max-w-7xl mx-auto mb-4">
+              <div className="flex items-center justify-between gap-4 px-4 h-12 rounded-lg bg-muted/30 border border-border/40 backdrop-blur-sm">
+                <button
+                  type="button"
+                  onClick={() => handleSelectAll(!allSelected)}
+                  className="flex items-center gap-2.5 text-sm font-medium transition-colors hover:text-foreground"
+                >
+                  {allSelected ? (
+                    <CircleCheck className="h-5 w-5 text-primary" />
+                  ) : someSelected ? (
+                    <div className="relative">
+                      <Circle className="h-5 w-5 text-primary/70" strokeWidth={2} />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="h-2 w-2 rounded-full bg-primary" />
+                      </div>
+                    </div>
+                  ) : (
+                    <Circle className="h-5 w-5 text-muted-foreground" strokeWidth={2} />
+                  )}
+                  <span className={cn(
+                    "transition-colors",
+                    allSelected && "text-primary",
+                    someSelected && "text-foreground",
+                    !allSelected && !someSelected && "text-muted-foreground"
+                  )}>
+                    {selectedNoteIds.size > 0 ? (
+                      <>
+                        <span className="font-semibold">{selectedNoteIds.size}</span>{" "}
+                        <span className="text-muted-foreground">selected</span>
+                      </>
+                    ) : (
+                      "Select all"
+                    )}
+                  </span>
+                </button>
+                <div className="flex items-center gap-0.5">
+                  <TooltipProvider delayDuration={0}>
+                    {selectedNoteIds.size > 0 && (
+                      <>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setArchiveDialogOpen(true)}
+                              disabled={bulkArchiveMutation.isPending}
+                              className="h-8 w-8 rounded-md hover:bg-accent"
+                            >
+                              <Archive className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Archive selected</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setDeleteDialogOpen(true)}
+                              disabled={bulkDeleteMutation.isPending}
+                              className="h-8 w-8 rounded-md text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Delete selected</TooltipContent>
+                        </Tooltip>
+                      </>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => {
+                            setIsSelectionMode(false);
+                            setSelectedNoteIds(new Set());
+                          }}
+                          className="h-8 w-8 rounded-md"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Cancel selection</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Controls Bar */}
-          {(filteredNotes.length > 0 || searchQuery || selectedTag) && (
-            <div className="max-w-7xl mx-auto mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          {(filteredNotes.length > 0 || searchQuery || selectedTag) && !isSelectionMode && (
+            <div className="max-w-7xl mx-auto mb-6 flex flex-col gap-4">
               {/* Tag filter indicator */}
               {selectedTag && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/50 border border-border/40">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/50 border border-border/40 w-fit">
                   <span className="text-sm text-muted-foreground">Filtering by</span>
                   <Badge
                     variant="secondary"
@@ -186,31 +434,43 @@ export default function NotesPage() {
                 </div>
               )}
 
-              {/* View Mode Toggle */}
+              {/* View Mode Toggle and Selection Mode Toggle */}
               {filteredNotes.length > 0 && (
-                <div className="flex items-center gap-3 ml-auto">
-                  <span className="text-sm text-muted-foreground hidden sm:inline">
-                    View:
-                  </span>
-                  <ToggleGroup
-                    type="single"
-                    value={viewMode}
-                    onValueChange={(value) => {
-                      if (value) setViewMode(value as ViewMode);
-                    }}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground hidden sm:inline">
+                      View:
+                    </span>
+                    <ToggleGroup
+                      type="single"
+                      value={viewMode}
+                      onValueChange={(value) => {
+                        if (value) setViewMode(value as ViewMode);
+                      }}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <ToggleGroupItem value="masonry" aria-label="Masonry view">
+                        <LayoutGrid className="h-4 w-4" />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="grid" aria-label="Grid view">
+                        <Grid3x3 className="h-4 w-4" />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="list" aria-label="List view">
+                        <List className="h-4 w-4" />
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+
+                  <Button
                     variant="outline"
                     size="sm"
+                    onClick={() => setIsSelectionMode(true)}
+                    className="h-8 px-3 gap-2 border-border/60 hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all shadow-none rounded-full"
                   >
-                    <ToggleGroupItem value="masonry" aria-label="Masonry view">
-                      <LayoutGrid className="h-4 w-4" />
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="grid" aria-label="Grid view">
-                      <Grid3x3 className="h-4 w-4" />
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="list" aria-label="List view">
-                      <List className="h-4 w-4" />
-                    </ToggleGroupItem>
-                  </ToggleGroup>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-xs font-medium">Select</span>
+                  </Button>
                 </div>
               )}
             </div>
@@ -315,6 +575,30 @@ export default function NotesPage() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <BulkDeleteDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={() => {
+          const noteIds = Array.from(selectedNoteIds);
+          bulkDeleteMutation.mutate(noteIds);
+        }}
+        count={selectedNoteIds.size}
+        isPending={bulkDeleteMutation.isPending}
+      />
+
+      {/* Archive Confirmation Dialog */}
+      <BulkArchiveDialog
+        open={archiveDialogOpen}
+        onOpenChange={setArchiveDialogOpen}
+        onConfirm={() => {
+          const noteIds = Array.from(selectedNoteIds);
+          bulkArchiveMutation.mutate(noteIds);
+        }}
+        count={selectedNoteIds.size}
+        isPending={bulkArchiveMutation.isPending}
+      />
     </div>
   );
 }

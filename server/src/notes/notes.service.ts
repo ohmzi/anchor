@@ -209,6 +209,56 @@ export class NotesService {
     return { purgedCount: result.count };
   }
 
+  // Bulk delete - moves multiple notes to trash
+  async bulkRemove(userId: string, noteIds: string[]) {
+    // Verify all notes belong to user
+    const notes = await this.prisma.note.findMany({
+      where: {
+        id: { in: noteIds },
+        userId,
+      },
+    });
+
+    if (notes.length !== noteIds.length) {
+      throw new NotFoundException('One or more notes not found');
+    }
+
+    await this.prisma.note.updateMany({
+      where: {
+        id: { in: noteIds },
+        userId,
+      },
+      data: { state: NoteState.trashed },
+    });
+
+    return { count: noteIds.length };
+  }
+
+  // Bulk archive
+  async bulkArchive(userId: string, noteIds: string[]) {
+    // Verify all notes belong to user
+    const notes = await this.prisma.note.findMany({
+      where: {
+        id: { in: noteIds },
+        userId,
+      },
+    });
+
+    if (notes.length !== noteIds.length) {
+      throw new NotFoundException('One or more notes not found');
+    }
+
+    await this.prisma.note.updateMany({
+      where: {
+        id: { in: noteIds },
+        userId,
+      },
+      data: { isArchived: true },
+    });
+
+    return { count: noteIds.length };
+  }
+
   // Sync endpoint - handles bi-directional sync with conflict resolution
   async sync(userId: string, syncDto: SyncNotesDto) {
     const { lastSyncedAt, changes } = syncDto;

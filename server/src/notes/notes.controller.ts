@@ -13,13 +13,14 @@ import { NotesService } from './notes.service';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateNoteDto } from './dto/update-note.dto';
 import { SyncNotesDto } from './dto/sync-notes.dto';
+import { BulkActionDto } from './dto/bulk-action.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('api/notes')
 @UseGuards(JwtAuthGuard)
 export class NotesController {
-  constructor(private readonly notesService: NotesService) {}
+  constructor(private readonly notesService: NotesService) { }
 
   @Post()
   create(
@@ -83,5 +84,21 @@ export class NotesController {
     @Param('id') id: string,
   ) {
     return this.notesService.permanentDelete(userId, id);
+  }
+
+  @Post('bulk/delete')
+  bulkDelete(
+    @CurrentUser('id') userId: string,
+    @Body() bulkActionDto: BulkActionDto,
+  ) {
+    return this.notesService.bulkRemove(userId, bulkActionDto.noteIds);
+  }
+
+  @Post('bulk/archive')
+  bulkArchive(
+    @CurrentUser('id') userId: string,
+    @Body() bulkActionDto: BulkActionDto,
+  ) {
+    return this.notesService.bulkArchive(userId, bulkActionDto.noteIds);
   }
 }

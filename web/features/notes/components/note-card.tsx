@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Pin } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { Note } from "@/features/notes";
 import { deltaToPreviewText } from "@/features/notes";
@@ -16,17 +17,48 @@ interface NoteCardProps {
   note: Note;
   index?: number;
   viewMode?: ViewMode;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onSelectChange?: (noteId: string, ctrlOrCmd: boolean, shift: boolean) => void;
 }
 
-export function NoteCard({ note, index = 0, viewMode = "masonry" }: NoteCardProps) {
+export function NoteCard({
+  note,
+  index = 0,
+  viewMode = "masonry",
+  isSelectionMode = false,
+  isSelected = false,
+  onSelectChange,
+}: NoteCardProps) {
   const router = useRouter();
 
   // Handle note click - store note in sessionStorage and navigate
   const handleNoteClick = (e: React.MouseEvent) => {
+    const ctrlOrCmd = e.ctrlKey || e.metaKey;
+    const shift = e.shiftKey;
+
+    // If in selection mode or using keyboard modifiers, handle selection
+    if (isSelectionMode || ctrlOrCmd || shift) {
+      e.preventDefault();
+      e.stopPropagation();
+      // Prevent text selection
+      if (window.getSelection) {
+        window.getSelection()?.removeAllRanges();
+      }
+      onSelectChange?.(note.id, ctrlOrCmd, shift);
+      return;
+    }
+
     e.preventDefault();
     // Store note in sessionStorage for the editor page to use
     sessionStorage.setItem(`note-${note.id}`, JSON.stringify(note));
     router.push(`/notes/${note.id}`);
+  };
+
+  // Handle checkbox change
+  const handleCheckboxChange = (checked: boolean) => {
+    // Checkbox click is treated as a simple toggle (no modifiers, but in selection mode)
+    onSelectChange?.(note.id, false, false);
   };
 
   // Extract plain text preview from content (assuming Delta JSON or plain text)
@@ -43,7 +75,16 @@ export function NoteCard({ note, index = 0, viewMode = "masonry" }: NoteCardProp
   // List view layout
   if (viewMode === "list") {
     return (
-      <div onClick={handleNoteClick} className="block cursor-pointer">
+      <div
+        onClick={handleNoteClick}
+        onMouseDown={(e) => {
+          // Prevent text selection when using modifier keys
+          if (e.ctrlKey || e.metaKey || e.shiftKey) {
+            e.preventDefault();
+          }
+        }}
+        className="block cursor-pointer select-none"
+      >
         <Card
           className={cn(
             "group relative overflow-hidden cursor-pointer",
@@ -51,7 +92,8 @@ export function NoteCard({ note, index = 0, viewMode = "masonry" }: NoteCardProp
             "shadow-sm hover:shadow-md",
             "transition-all duration-200 ease-out",
             "hover:border-border",
-            "animate-in fade-in-0 slide-in-from-left-4"
+            "animate-in fade-in-0 slide-in-from-left-4",
+            isSelected && "ring-1 ring-primary/50 ring-offset-1"
           )}
           style={{
             animationDelay: `${staggerDelay}ms`,
@@ -61,10 +103,21 @@ export function NoteCard({ note, index = 0, viewMode = "masonry" }: NoteCardProp
           <NoteBackground styleId={note.background} className="absolute inset-0" />
           <div className="relative">
             <CardContent>
-              <div className="flex items-start gap-4">
+              <div className="flex items-start gap-3">
+                {/* Checkbox for selection mode */}
+                {isSelectionMode && (
+                  <div className="flex-shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={handleCheckboxChange}
+                      className="h-4 w-4"
+                    />
+                  </div>
+                )}
+
                 {/* Pin indicator */}
-                {note.isPinned && (
-                  <div className="pt-1 flex-shrink-0">
+                {note.isPinned && !isSelectionMode && (
+                  <div className="flex-shrink-0 mt-0.5">
                     <Pin className="h-4 w-4 text-accent fill-accent" />
                   </div>
                 )}
@@ -126,7 +179,16 @@ export function NoteCard({ note, index = 0, viewMode = "masonry" }: NoteCardProp
 
   // Grid and Masonry view (similar layout, different sizing)
   return (
-    <div onClick={handleNoteClick} className="block cursor-pointer">
+    <div
+      onClick={handleNoteClick}
+      onMouseDown={(e) => {
+        // Prevent text selection when using modifier keys
+        if (e.ctrlKey || e.metaKey || e.shiftKey) {
+          e.preventDefault();
+        }
+      }}
+      className="block cursor-pointer select-none"
+    >
       <Card
         className={cn(
           "group relative overflow-hidden cursor-pointer",
@@ -135,7 +197,8 @@ export function NoteCard({ note, index = 0, viewMode = "masonry" }: NoteCardProp
           "transition-all duration-300 ease-out",
           "hover:border-border hover:-translate-y-1",
           "animate-in fade-in-0 slide-in-from-bottom-4",
-          viewMode === "grid" && "h-full"
+          viewMode === "grid" && "h-full",
+          isSelected && "ring-1 ring-primary/50 ring-offset-1"
         )}
         style={{
           animationDelay: `${staggerDelay}ms`,
@@ -145,8 +208,19 @@ export function NoteCard({ note, index = 0, viewMode = "masonry" }: NoteCardProp
         <NoteBackground styleId={note.background} className="absolute inset-0" />
         <div className="relative">
           <CardContent className={cn(viewMode === "grid" && "flex flex-col h-full")}>
+            {/* Checkbox for selection mode */}
+            {isSelectionMode && (
+              <div className="absolute top-3 right-3 z-10" onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={handleCheckboxChange}
+                  className="h-4 w-4 bg-background/90 backdrop-blur-sm shadow-sm"
+                />
+              </div>
+            )}
+
             {/* Pin indicator */}
-            {note.isPinned && (
+            {note.isPinned && !isSelectionMode && (
               <div className="absolute top-3 right-3 z-10">
                 <div className="w-7 h-7 rounded-full bg-accent/10 backdrop-blur-sm flex items-center justify-center border border-accent/20">
                   <Pin className="h-3.5 w-3.5 text-accent fill-accent" />

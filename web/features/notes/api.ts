@@ -57,3 +57,10 @@ export async function unarchiveNote(id: string): Promise<Note> {
   return api.patch(`api/notes/${id}`, { json: { isArchived: false } }).json<Note>();
 }
 
+export async function bulkDeleteNotes(noteIds: string[]): Promise<{ count: number }> {
+  return api.post("api/notes/bulk/delete", { json: { noteIds } }).json<{ count: number }>();
+}
+
+export async function bulkArchiveNotes(noteIds: string[]): Promise<{ count: number }> {
+  return api.post("api/notes/bulk/archive", { json: { noteIds } }).json<{ count: number }>();
+}

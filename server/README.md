@@ -79,6 +79,8 @@ pnpm run test:e2e
 - `POST /api/notes/sync` - Sync notes with client
 - `PATCH /api/notes/:id/restore` - Restore a note from trash
 - `DELETE /api/notes/:id/permanent` - Permanently delete a note
+- `POST /api/notes/bulk/delete` - Bulk delete notes
+- `POST /api/notes/bulk/archive` - Bulk archive notes
 
 ### Tags
 - `GET /api/tags` - Get all tags

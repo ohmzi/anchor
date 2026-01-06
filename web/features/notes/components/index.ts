@@ -6,6 +6,8 @@ export {
   RestoreDialog,
   DeleteDialog,
   PermanentDeleteDialog,
+  BulkDeleteDialog,
+  BulkArchiveDialog,
 } from "./dialogs";
 export {
   ReadOnlyBanner,
