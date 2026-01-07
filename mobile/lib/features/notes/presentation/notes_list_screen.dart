@@ -10,7 +10,10 @@ import 'package:anchor/features/tags/domain/tag.dart';
 import 'package:anchor/features/notes/presentation/widgets/note_card.dart';
 import 'package:anchor/features/notes/presentation/widgets/selection_app_bar_actions.dart';
 import 'package:anchor/features/notes/presentation/widgets/empty_states.dart';
+import 'package:anchor/features/notes/domain/note.dart';
 import 'notes_controller.dart';
+import 'notes_view_options.dart';
+import 'widgets/view_options_sheet.dart';
 
 class NotesListScreen extends ConsumerStatefulWidget {
   const NotesListScreen({super.key});
@@ -48,6 +51,31 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
     ref.read(tagsControllerProvider.notifier).sync();
   }
 
+  Widget _buildNoteItem(
+    Note note,
+    bool isSelectionMode,
+    Set<String> selectedNoteIds,
+  ) {
+    return NoteCard(
+      note: note,
+      isSelectionMode: isSelectionMode,
+      isSelected: selectedNoteIds.contains(note.id),
+      onLongPress: () {
+        if (!isSelectionMode) {
+          ref.read(selectionModeProvider.notifier).setEnabled(true);
+        }
+        ref.read(selectedNoteIdsProvider.notifier).toggle(note.id);
+      },
+      onTap: () {
+        if (isSelectionMode) {
+          ref.read(selectedNoteIdsProvider.notifier).toggle(note.id);
+        } else {
+          context.go('/note/${note.id}', extra: note);
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final notesAsync = ref.watch(notesControllerProvider);
@@ -57,6 +85,8 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
     final isSyncing = ref.watch(syncingStateProvider);
     final isSelectionMode = ref.watch(selectionModeProvider);
     final selectedNoteIds = ref.watch(selectedNoteIdsProvider);
+    final viewOptionsAsync = ref.watch(notesViewOptionsProvider);
+    final viewOptions = viewOptionsAsync.value;
     final theme = Theme.of(context);
 
     // Get selected tag
@@ -157,8 +187,25 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
                       // Only show sync indicator when actively syncing
                       if (isSyncing)
                         Padding(
-                          padding: const EdgeInsets.only(right: 16),
+                          padding: const EdgeInsets.only(right: 8),
                           child: Center(child: _SyncIndicator(theme: theme)),
+                        ),
+                      if (viewOptions != null)
+                        IconButton(
+                          icon: Icon(
+                            viewOptions.viewType == ViewType.grid
+                                ? LucideIcons.layoutGrid
+                                : LucideIcons.list,
+                          ),
+                          tooltip: 'View options',
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              builder: (context) => const ViewOptionsSheet(),
+                              useSafeArea: true,
+                              isScrollControlled: true,
+                            );
+                          },
                         ),
                     ],
                   ],
@@ -238,45 +285,63 @@ class _NotesListScreenState extends ConsumerState<NotesListScreen> {
                       }
                       return const EmptyNotesState();
                     }
+
+                    if (viewOptions == null) {
+                      return const SliverToBoxAdapter(child: SizedBox.shrink());
+                    }
+
+                    // Apply sorting
+                    filteredNotes.sort((a, b) {
+                      // Pinned notes stay on top regardless of sort.
+                      if (a.isPinned != b.isPinned) {
+                        return a.isPinned ? -1 : 1;
+                      }
+
+                      int compare;
+                      switch (viewOptions.sortOption) {
+                        case SortOption.dateModified:
+                          compare = (a.updatedAt ?? DateTime(0)).compareTo(
+                            b.updatedAt ?? DateTime(0),
+                          );
+                          break;
+                        case SortOption.title:
+                          compare = a.title.compareTo(b.title);
+                          break;
+                      }
+                      return viewOptions.isAscending ? compare : -compare;
+                    });
+
                     return SliverPadding(
                       padding: const EdgeInsets.all(16),
-                      sliver: SliverMasonryGrid.count(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 16,
-                        crossAxisSpacing: 16,
-                        childCount: filteredNotes.length,
-                        itemBuilder: (context, index) {
-                          return NoteCard(
-                            note: filteredNotes[index],
-                            isSelectionMode: isSelectionMode,
-                            isSelected: selectedNoteIds.contains(
-                              filteredNotes[index].id,
-                            ),
-                            onLongPress: () {
-                              if (!isSelectionMode) {
-                                ref
-                                    .read(selectionModeProvider.notifier)
-                                    .setEnabled(true);
-                              }
-                              ref
-                                  .read(selectedNoteIdsProvider.notifier)
-                                  .toggle(filteredNotes[index].id);
-                            },
-                            onTap: () {
-                              if (isSelectionMode) {
-                                ref
-                                    .read(selectedNoteIdsProvider.notifier)
-                                    .toggle(filteredNotes[index].id);
-                              } else {
-                                context.go(
-                                  '/note/${filteredNotes[index].id}',
-                                  extra: filteredNotes[index],
+                      sliver: viewOptions.viewType == ViewType.grid
+                          ? SliverMasonryGrid.count(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 16,
+                              crossAxisSpacing: 16,
+                              childCount: filteredNotes.length,
+                              itemBuilder: (context, index) {
+                                return _buildNoteItem(
+                                  filteredNotes[index],
+                                  isSelectionMode,
+                                  selectedNoteIds,
                                 );
-                              }
-                            },
-                          );
-                        },
-                      ),
+                              },
+                            )
+                          : SliverList(
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: _buildNoteItem(
+                                    filteredNotes[index],
+                                    isSelectionMode,
+                                    selectedNoteIds,
+                                  ),
+                                );
+                              }, childCount: filteredNotes.length),
+                            ),
                     );
                   },
                   loading: () => const SliverFillRemaining(
