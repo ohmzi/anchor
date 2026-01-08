@@ -95,6 +95,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Download APK artifact
         uses: actions/download-artifact@v4
@@ -102,12 +104,21 @@ jobs:
           name: android-apk
           path: artifacts
 
+      - name: Generate Release Notes
+        id: release_notes
+        uses: mikepenz/release-changelog-builder-action@v5
+        with:
+          mode: "COMMIT"
+          configurationJson: ${{ github.workspace }}/.github/release-config.json
+          outputFile: release-notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body_path: release-notes.md
           files: |
             artifacts/anchor-*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
