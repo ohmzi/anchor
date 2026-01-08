@@ -24,6 +24,9 @@ const jetBrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Anchor",
   description: "Your thoughts, secured",
+  other: {
+    "apple-mobile-web-app-title": "Anchor",
+  },
 };
 
 export default function RootLayout({

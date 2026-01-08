@@ -193,7 +193,14 @@ export function Sidebar({
             isCollapsed ? "justify-center px-2" : "justify-between px-4"
           )}
         >
-          <div className={cn("flex items-center gap-2", isCollapsed && "justify-center")}>
+          <Link
+            href="/notes"
+            onClick={onNavigate}
+            className={cn(
+              "flex items-center gap-2 transition-colors hover:opacity-80",
+              isCollapsed && "justify-center"
+            )}
+          >
             <Image
               src="/icons/anchor_icon.png"
               alt="Anchor"
@@ -205,7 +212,7 @@ export function Sidebar({
                 Anchor
               </span>
             )}
-          </div>
+          </Link>
           {!isCollapsed && onToggleCollapse && (
             <Tooltip>
               <TooltipTrigger asChild>

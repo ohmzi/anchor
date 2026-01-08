@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Loader2 } from "lucide-react";
+import { Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,9 @@ export default function SettingsPage() {
   const [currentPasswordError, setCurrentPasswordError] = useState("");
   const [newPasswordError, setNewPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
+  const [isCurrentPasswordVisible, setIsCurrentPasswordVisible] = useState(false);
+  const [isNewPasswordVisible, setIsNewPasswordVisible] = useState(false);
+  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
 
   const changePasswordMutation = useMutation({
     mutationFn: changePassword,
@@ -134,17 +137,30 @@ export default function SettingsPage() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="currentPassword"
-                  type="password"
+                  type={isCurrentPasswordVisible ? "text" : "password"}
                   placeholder="Enter your current password"
                   value={currentPassword}
                   onChange={handleCurrentPasswordChange}
                   className={cn(
-                    "pl-10 h-12 bg-background/50",
+                    "pl-10 pr-10 h-12 bg-background/50",
                     currentPasswordError && "border-destructive focus:border-destructive focus:ring-destructive/20"
                   )}
                   aria-invalid={!!currentPasswordError}
                   required
                 />
+                {currentPassword && (
+                  <button
+                    type="button"
+                    onClick={() => setIsCurrentPasswordVisible(!isCurrentPasswordVisible)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isCurrentPasswordVisible ? (
+                      <EyeOff className="h-4 w-4 opacity-40" />
+                    ) : (
+                      <Eye className="h-4 w-4 opacity-40" />
+                    )}
+                  </button>
+                )}
               </div>
               {currentPasswordError && (
                 <p className="text-xs text-destructive px-1">
@@ -158,18 +174,31 @@ export default function SettingsPage() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="newPassword"
-                  type="password"
+                  type={isNewPasswordVisible ? "text" : "password"}
                   placeholder="Enter your new password"
                   value={newPassword}
                   onChange={handleNewPasswordChange}
                   onBlur={handleNewPasswordBlur}
                   className={cn(
-                    "pl-10 h-12 bg-background/50",
+                    "pl-10 pr-10 h-12 bg-background/50",
                     newPasswordError && "border-destructive focus:border-destructive focus:ring-destructive/20"
                   )}
                   aria-invalid={!!newPasswordError}
                   required
                 />
+                {newPassword && (
+                  <button
+                    type="button"
+                    onClick={() => setIsNewPasswordVisible(!isNewPasswordVisible)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isNewPasswordVisible ? (
+                      <EyeOff className="h-4 w-4 opacity-40" />
+                    ) : (
+                      <Eye className="h-4 w-4 opacity-40" />
+                    )}
+                  </button>
+                )}
               </div>
               {newPasswordError ? (
                 <p className="text-xs text-destructive px-1">
@@ -187,18 +216,31 @@ export default function SettingsPage() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="confirmPassword"
-                  type="password"
+                  type={isConfirmPasswordVisible ? "text" : "password"}
                   placeholder="Confirm your new password"
                   value={confirmPassword}
                   onChange={handleConfirmPasswordChange}
                   onBlur={handleConfirmPasswordBlur}
                   className={cn(
-                    "pl-10 h-12 bg-background/50",
+                    "pl-10 pr-10 h-12 bg-background/50",
                     confirmPasswordError && "border-destructive focus:border-destructive focus:ring-destructive/20"
                   )}
                   aria-invalid={!!confirmPasswordError}
                   required
                 />
+                {confirmPassword && (
+                  <button
+                    type="button"
+                    onClick={() => setIsConfirmPasswordVisible(!isConfirmPasswordVisible)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {isConfirmPasswordVisible ? (
+                      <EyeOff className="h-4 w-4 opacity-40" />
+                    ) : (
+                      <Eye className="h-4 w-4 opacity-40" />
+                    )}
+                  </button>
+                )}
               </div>
               {confirmPasswordError && (
                 <p className="text-xs text-destructive px-1">
