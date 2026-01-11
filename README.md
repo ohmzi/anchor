@@ -4,10 +4,10 @@
 
 # Anchor
 
-**An offline-first, self-hostable note taking application**
+**An offline first, self hostable note taking application**
 
 [![Version](https://img.shields.io/github/v/release/zhfahim/anchor?label=version)](https://github.com/zhfahim/anchor/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker)](https://github.com/zhfahim/anchor)
 
 Anchor focuses on speed, privacy, simplicity, and reliability across mobile and web. Notes are stored locally, editable offline, and synced across devices when online.
@@ -27,6 +27,23 @@ Anchor focuses on speed, privacy, simplicity, and reliability across mobile and 
 - **Offline-First** - All edits work offline with local storage
 - **Automatic Sync** - Sync changes across devices when online
 - **Dark Mode** - Beautiful dark and light themes
+
+
+## Screenshots
+
+### Web App
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/zhfahim/anchor/main/.github/assets/screenshot-web-light.png" alt="Web Light Mode" width="45%">
+  <img src="https://raw.githubusercontent.com/zhfahim/anchor/main/.github/assets/screenshot-web-dark.png" alt="Web Dark Mode" width="45%">
+</div>
+
+### Mobile App
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/zhfahim/anchor/main/.github/assets/screenshot-mobile-light.jpg" alt="Mobile Light Mode" width="20%">
+  <img src="https://raw.githubusercontent.com/zhfahim/anchor/main/.github/assets/screenshot-mobile-dark.jpg" alt="Mobile Dark Mode" width="20%">
+</div>
 
 
 ## Self Hosting With Docker
@@ -88,6 +105,19 @@ If you want to build from source or customize the image:
    The `docker-compose.yml` file will build the image from source automatically.
 
 
+## Mobile App
+
+Download the Android mobile app.
+
+1. **Visit the releases page:**
+   Go to [GitHub Releases](https://github.com/zhfahim/anchor/releases).
+
+2. **Download the latest release:**
+   Multiple APK files are available:
+   - **Universal APK** (`anchor-{version}.apk`) - Recommended for most users, works on all devices
+   - **Architecture-specific APKs** - Smaller file sizes for specific CPU architectures
+
+
 ## Roadmap
 
 Future planned features:
@@ -126,4 +156,4 @@ Future planned features:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL v3) - see the [LICENSE](LICENSE) file for details.
