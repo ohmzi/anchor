@@ -12,6 +12,7 @@ import { NoteState } from 'src/generated/prisma/enums';
 import { UserStatus } from 'src/generated/prisma/enums';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { generateApiToken } from '../auth/utils/generate-api-token';
 
 @Injectable()
 export class AdminService {
@@ -115,6 +116,7 @@ export class AdminService {
       data: {
         email: createUserDto.email,
         password: hashedPassword,
+        apiToken: generateApiToken(),
         isAdmin: false,
       },
       select: {

@@ -1,6 +1,7 @@
 export interface User {
   id: string;
   email: string;
+  apiToken?: string;
   isAdmin?: boolean;
   createdAt?: string;
   updatedAt?: string;

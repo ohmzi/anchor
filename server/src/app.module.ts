@@ -8,6 +8,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { HealthModule } from './health/health.module';
 import { AdminModule } from './admin/admin.module';
 import { SettingsModule } from './settings/settings.module';
+import { HomarrIntegrationModule } from './integrations/homarr/homarr-integration.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { SettingsModule } from './settings/settings.module';
     HealthModule,
     AdminModule,
     SettingsModule,
+    HomarrIntegrationModule,
   ],
 })
 export class AppModule { }

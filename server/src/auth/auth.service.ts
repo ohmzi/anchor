@@ -13,6 +13,7 @@ import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserStatus } from '../generated/prisma/enums';
 import * as bcrypt from 'bcrypt';
+import { generateApiToken } from './utils/generate-api-token';
 
 @Injectable()
 export class AuthService {
@@ -58,12 +59,14 @@ export class AuthService {
       data: {
         email: registerDto.email,
         password: hashedPassword,
+        apiToken: generateApiToken(),
         isAdmin: adminCount === 0, // First user becomes admin
         status: userStatus,
       },
       select: {
         id: true,
         email: true,
+        apiToken: true,
         isAdmin: true,
         status: true,
         createdAt: true,
@@ -94,6 +97,7 @@ export class AuthService {
         id: true,
         email: true,
         password: true,
+        apiToken: true,
         isAdmin: true,
         status: true,
       },
@@ -119,8 +123,17 @@ export class AuthService {
       );
     }
 
+    let apiToken = user.apiToken;
+    if (!apiToken) {
+      apiToken = generateApiToken();
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { apiToken },
+      });
+    }
+
     // Remove password from user object
-    const { password: _, ...userWithoutPassword } = user;
+    const { password: _, ...userWithoutPassword } = { ...user, apiToken };
 
     const payload = { email: userWithoutPassword.email, sub: userWithoutPassword.id };
     return {

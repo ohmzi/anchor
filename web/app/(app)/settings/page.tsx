@@ -1,17 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, Loader2, Eye, EyeOff } from "lucide-react";
+import { Lock, Loader2, Eye, EyeOff, KeyRound, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMutation } from "@tanstack/react-query";
 import { changePassword } from "@/features/auth/api";
+import { useAuth } from "@/features/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -21,6 +23,7 @@ export default function SettingsPage() {
   const [isCurrentPasswordVisible, setIsCurrentPasswordVisible] = useState(false);
   const [isNewPasswordVisible, setIsNewPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
+  const [isApiTokenVisible, setIsApiTokenVisible] = useState(false);
 
   const changePasswordMutation = useMutation({
     mutationFn: changePassword,
@@ -115,6 +118,15 @@ export default function SettingsPage() {
     }
   };
 
+  const handleCopyToken = async () => {
+    if (!user?.apiToken) {
+      toast.error("API token is not available yet");
+      return;
+    }
+    await navigator.clipboard.writeText(user.apiToken);
+    toast.success("API token copied to clipboard");
+  };
+
   return (
     <div className="container max-w-2xl mx-auto p-6">
       <div className="mb-6">
@@ -122,7 +134,60 @@ export default function SettingsPage() {
         <p className="text-muted-foreground">Manage your account settings</p>
       </div>
 
-      <Card className="border-0 shadow-xl bg-card/80 backdrop-blur-sm">
+      <div className="space-y-6">
+        <Card className="border-0 shadow-xl bg-card/80 backdrop-blur-sm">
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-2xl">API Token</CardTitle>
+          <CardDescription>
+            Use this token to connect external integrations like Homarr
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="apiToken">Token</Label>
+            <div className="relative">
+              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="apiToken"
+                type={isApiTokenVisible ? "text" : "password"}
+                value={user?.apiToken ?? ""}
+                readOnly
+                className="pl-10 pr-10 h-12 bg-background/50"
+              />
+              {user?.apiToken && (
+                <button
+                  type="button"
+                  onClick={() => setIsApiTokenVisible(!isApiTokenVisible)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {isApiTokenVisible ? (
+                    <EyeOff className="h-4 w-4 opacity-40" />
+                  ) : (
+                    <Eye className="h-4 w-4 opacity-40" />
+                  )}
+                </button>
+              )}
+            </div>
+            {!user?.apiToken && (
+              <p className="text-xs text-muted-foreground">
+                Your token will appear after your account is fully initialized.
+              </p>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCopyToken}
+            disabled={!user?.apiToken}
+            className="gap-2"
+          >
+            <Copy className="h-4 w-4" />
+            Copy token
+          </Button>
+        </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-xl bg-card/80 backdrop-blur-sm">
         <CardHeader className="space-y-1 pb-4">
           <CardTitle className="text-2xl">Change Password</CardTitle>
           <CardDescription>
@@ -264,7 +329,8 @@ export default function SettingsPage() {
             </Button>
           </form>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

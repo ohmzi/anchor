@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { generateApiToken } from './utils/generate-api-token';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -20,6 +21,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       select: {
         id: true,
         email: true,
+        apiToken: true,
         isAdmin: true,
         status: true,
         createdAt: true,
@@ -34,6 +36,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     // Reject pending users
     if (user.status === 'pending') {
       throw new UnauthorizedException('Account pending approval');
+    }
+
+    if (!user.apiToken) {
+      const apiToken = generateApiToken();
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { apiToken },
+      });
+      return { ...user, apiToken };
     }
 
     return user;

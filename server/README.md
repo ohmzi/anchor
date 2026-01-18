@@ -22,6 +22,12 @@ Nest.js backend for Anchor application.
     PORT=3001
     ```
 
+    Optional Homarr integration settings:
+    ```env
+    HOMARR_INTEGRATION_TOKEN="your-long-random-token"
+    HOMARR_INTEGRATION_USER_ID="anchor-user-uuid"
+    ```
+
 3.  Start Database:
     From the project root:
     ```bash
@@ -92,6 +98,14 @@ pnpm run test:e2e
 - `PATCH /api/tags/:id` - Update a tag
 - `DELETE /api/tags/:id` - Delete a tag
 - `POST /api/tags/sync` - Sync tags with client
+
+### Integrations
+- `GET /api/integrations/homarr/notes` - List notes for Homarr (supports `?search=term`, `?tagId=id`, `?limit=n`, requires Bearer token)
+- `GET /api/integrations/homarr/notes/:id` - Get a note for Homarr (requires Bearer token)
+
+Homarr integration tokens:
+- Each user gets an API token (Settings -> API Token) that can be used as the Bearer token.
+- Optional shared token via `HOMARR_INTEGRATION_TOKEN` + `HOMARR_INTEGRATION_USER_ID` is still supported.
 
 ### Admin (requires admin privileges)
 - `GET /api/admin/stats` - Get server statistics
