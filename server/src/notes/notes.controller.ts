@@ -65,10 +65,7 @@ export class NotesController {
   }
 
   @Post(':id/lock')
-  async lock(
-    @CurrentUser('id') userId: string,
-    @Param('id') id: string,
-  ) {
+  async lock(@CurrentUser('id') userId: string, @Param('id') id: string) {
     await this.notesService.findOne(userId, id, true);
     const result = this.noteLockService.acquire(id, 'anchor', userId);
     if (result.status === 'locked') {
@@ -83,10 +80,7 @@ export class NotesController {
   }
 
   @Delete(':id/lock')
-  async unlock(
-    @CurrentUser('id') userId: string,
-    @Param('id') id: string,
-  ) {
+  async unlock(@CurrentUser('id') userId: string, @Param('id') id: string) {
     await this.notesService.findOne(userId, id, true);
     this.noteLockService.release(id, 'anchor', userId);
     return { status: 'released' };
@@ -112,10 +106,7 @@ export class NotesController {
   }
 
   @Delete(':id/permanent')
-  permanentDelete(
-    @CurrentUser('id') userId: string,
-    @Param('id') id: string,
-  ) {
+  permanentDelete(@CurrentUser('id') userId: string, @Param('id') id: string) {
     return this.notesService.permanentDelete(userId, id);
   }
 

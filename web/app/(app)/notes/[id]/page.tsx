@@ -144,7 +144,7 @@ export default function NoteEditorPage() {
       }
       unlockNote(noteId).catch(() => {});
     };
-  }, [isNew, lockNote, note?.state, noteId, unlockNote]);
+  }, [isNew, note?.state, noteId]);
 
   const createMutation = useMutation({
     mutationFn: (data: CreateNoteDto) => createNote(data),

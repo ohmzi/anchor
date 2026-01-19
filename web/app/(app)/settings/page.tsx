@@ -179,7 +179,7 @@ export default function SettingsPage() {
             variant="outline"
             onClick={handleCopyToken}
             disabled={!user?.apiToken}
-            className="gap-2"
+            className="gap-2 active:scale-95"
           >
             <Copy className="h-4 w-4" />
             Copy token

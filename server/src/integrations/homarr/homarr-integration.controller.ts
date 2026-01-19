@@ -17,7 +17,9 @@ import { UpdateHomarrNoteDto } from './dto/update-homarr-note.dto';
 @Controller('api/integrations/homarr')
 @UseGuards(HomarrIntegrationGuard)
 export class HomarrIntegrationController {
-  constructor(private readonly homarrIntegrationService: HomarrIntegrationService) {}
+  constructor(
+    private readonly homarrIntegrationService: HomarrIntegrationService,
+  ) {}
 
   @Get('notes')
   listNotes(
@@ -35,18 +37,12 @@ export class HomarrIntegrationController {
   }
 
   @Get('notes/:id')
-  getNote(
-    @HomarrIntegrationUserId() userId: string,
-    @Param('id') id: string,
-  ) {
+  getNote(@HomarrIntegrationUserId() userId: string, @Param('id') id: string) {
     return this.homarrIntegrationService.getNote(userId, id);
   }
 
   @Post('notes/:id/lock')
-  lockNote(
-    @HomarrIntegrationUserId() userId: string,
-    @Param('id') id: string,
-  ) {
+  lockNote(@HomarrIntegrationUserId() userId: string, @Param('id') id: string) {
     return this.homarrIntegrationService.lockNote(userId, id);
   }
 
