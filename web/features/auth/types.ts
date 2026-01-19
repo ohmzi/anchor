@@ -1,6 +1,8 @@
 export interface User {
   id: string;
   email: string;
+  name: string;
+  profileImage?: string;
   apiToken?: string;
   isAdmin?: boolean;
   createdAt?: string;
@@ -21,9 +23,14 @@ export interface LoginCredentials {
 export interface RegisterCredentials {
   email: string;
   password: string;
+  name: string;
 }
 
 export interface ChangePasswordCredentials {
   currentPassword: string;
   newPassword: string;
+}
+
+export interface UpdateProfileDto {
+  name?: string | null;
 }
