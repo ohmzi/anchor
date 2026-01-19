@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { NoteState } from 'src/generated/prisma/enums';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { NoteLockService } from 'src/notes/note-lock.service';
@@ -38,9 +34,9 @@ export class HomarrIntegrationService {
         }),
         OR: normalizedSearch
           ? [
-              { title: { contains: normalizedSearch, mode: 'insensitive' } },
-              { content: { contains: normalizedSearch, mode: 'insensitive' } },
-            ]
+            { title: { contains: normalizedSearch, mode: 'insensitive' } },
+            { content: { contains: normalizedSearch, mode: 'insensitive' } },
+          ]
           : undefined,
       },
       orderBy: [{ isPinned: 'desc' }, { updatedAt: 'desc' }],
@@ -86,11 +82,7 @@ export class HomarrIntegrationService {
     return { status: 'released' };
   }
 
-  async updateNote(
-    userId: string,
-    id: string,
-    updateNoteDto: UpdateHomarrNoteDto,
-  ) {
+  async updateNote(userId: string, id: string, updateNoteDto: UpdateHomarrNoteDto) {
     await this.getActiveNote(userId, id);
     const lockStatus = this.noteLockService.check(id, 'homarr', userId);
     if (lockStatus.status === 'locked') {
@@ -104,12 +96,8 @@ export class HomarrIntegrationService {
     const note = await this.prisma.note.update({
       where: { id },
       data: {
-        ...(updateNoteDto.title !== undefined && {
-          title: updateNoteDto.title,
-        }),
-        ...(updateNoteDto.content !== undefined && {
-          content: updateNoteDto.content,
-        }),
+        ...(updateNoteDto.title !== undefined && { title: updateNoteDto.title }),
+        ...(updateNoteDto.content !== undefined && { content: updateNoteDto.content }),
       },
       include: {
         tags: {
