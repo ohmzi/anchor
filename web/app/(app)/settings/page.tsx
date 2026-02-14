@@ -318,16 +318,19 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="container max-w-2xl mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-serif font-bold mb-2">Settings</h1>
-        <p className="text-muted-foreground">Manage your account settings</p>
-      </div>
+    <div className="mx-auto w-full max-w-3xl space-y-5 px-4 pb-10 pt-6">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Settings</h1>
+        <p className="text-sm text-muted-foreground">Manage your account settings</p>
+      </header>
 
       {/* Profile Section */}
-      <Card className="border-0 shadow-xl bg-card/80 backdrop-blur-sm mb-6">
-        <CardHeader className="space-y-1 pb-4">
-          <CardTitle className="text-2xl">Profile</CardTitle>
+      <Card className="border-border/70 bg-card/95 mb-5">
+        <CardHeader className="space-y-1">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <User className="h-4 w-4 text-accent" />
+            Profile
+          </CardTitle>
           <CardDescription>
             Update your profile information and image
           </CardDescription>
@@ -416,9 +419,12 @@ export default function SettingsPage() {
       </Card>
 
       {/* Editor Settings Section */}
-      <Card className="border-0 shadow-xl bg-card/80 backdrop-blur-sm mb-6">
-        <CardHeader className="space-y-1 pb-4">
-          <CardTitle className="text-2xl">Editor</CardTitle>
+      <Card className="border-border/70 bg-card/95 mb-5">
+        <CardHeader className="space-y-1">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <ListChecks className="h-4 w-4 text-accent" />
+            Editor
+          </CardTitle>
           <CardDescription>
             Customize how the note editor behaves
           </CardDescription>
@@ -446,9 +452,12 @@ export default function SettingsPage() {
       </Card>
 
       {/* API Token Section */}
-      <Card className="border-0 shadow-xl bg-card/80 backdrop-blur-sm mb-6">
-        <CardHeader className="space-y-1 pb-4">
-          <CardTitle className="text-2xl">API Token</CardTitle>
+      <Card className="border-border/70 bg-card/95 mb-5">
+        <CardHeader className="space-y-1">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <KeyRound className="h-4 w-4 text-accent" />
+            API Token
+          </CardTitle>
           <CardDescription>
             Use this token to authenticate external clients such as Homarr
           </CardDescription>
@@ -531,9 +540,12 @@ export default function SettingsPage() {
       </Card>
 
       {/* Change Password Section */}
-      <Card className="border-0 shadow-xl bg-card/80 backdrop-blur-sm mb-6">
-        <CardHeader className="space-y-1 pb-4">
-          <CardTitle className="text-2xl">Change Password</CardTitle>
+      <Card className="border-border/70 bg-card/95 mb-5">
+        <CardHeader className="space-y-1">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Lock className="h-4 w-4 text-accent" />
+            Change Password
+          </CardTitle>
           <CardDescription>
             Update your password to keep your account secure
           </CardDescription>
