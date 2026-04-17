@@ -333,8 +333,7 @@ export function Sidebar({
                   href="/notes/new"
                   onClick={handleNavClick}
                   className={cn(
-                    "group flex items-center justify-center",
-                    "w-12 h-12",
+                    "group relative flex h-12 w-12 items-center gap-0 overflow-hidden pl-0",
                     "rounded-2xl",
                     "border-2 border-dashed border-accent/40",
                     "bg-accent/5",
@@ -346,7 +345,9 @@ export function Sidebar({
                     "active:scale-95"
                   )}
                 >
-                  <Plus className="h-5 w-5 transition-transform duration-200 group-hover:rotate-180" strokeWidth={2} />
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center">
+                    <Plus className="h-5 w-5 transition-transform duration-200 group-hover:rotate-180" strokeWidth={2} />
+                  </span>
                 </Link>
               </TooltipTrigger>
               <TooltipContent side="right">New Note</TooltipContent>
@@ -579,7 +580,7 @@ export function Sidebar({
               <TooltipTrigger asChild>
                 <Button
                   onClick={cycleTheme}
-                  className="group flex h-10 min-h-10 w-10 shrink-0 rounded-xl border border-transparent bg-transparent text-sidebar-foreground/70 transition-colors
+                  className="group flex h-10 min-h-10 w-10 shrink-0 items-center justify-start gap-0 overflow-hidden rounded-xl border border-transparent bg-transparent pl-0 pr-0 text-sidebar-foreground/70 transition-colors
                   hover:text-sidebar-foreground hover:bg-sidebar-accent/70"
                 >
                   <span className={railIconSlot}>
@@ -612,18 +613,20 @@ export function Sidebar({
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
                       <Button
-                        className="group flex h-10 min-h-10 w-10 shrink-0 rounded-xl border border-transparent bg-transparent text-sidebar-foreground/70 transition-colors
+                        className="group flex h-10 min-h-10 w-10 shrink-0 items-center justify-start gap-0 overflow-hidden rounded-xl border border-transparent bg-transparent pl-0 pr-0 text-sidebar-foreground/70 transition-colors
                         hover:text-sidebar-foreground hover:bg-sidebar-accent/70"
                       >
-                        <Avatar className="h-4 w-4 flex-shrink-0">
-                          <AvatarImage
-                            src={user.profileImage ? user.profileImage.startsWith('http') ? user.profileImage : user.profileImage : undefined}
-                            alt={user.name}
-                          />
-                          <AvatarFallback className="text-[9px] leading-none">
-                            {user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <span className={railIconSlot}>
+                          <Avatar className="h-4 w-4 flex-shrink-0">
+                            <AvatarImage
+                              src={user.profileImage ? user.profileImage.startsWith('http') ? user.profileImage : user.profileImage : undefined}
+                              alt={user.name}
+                            />
+                            <AvatarFallback className="text-[9px] leading-none">
+                              {user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </span>
                       </Button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
