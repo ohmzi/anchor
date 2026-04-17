@@ -68,11 +68,19 @@ pnpm run test:e2e
 - `POST /api/auth/register` - Register a new user
 - `POST /api/auth/login` - Login
 - `POST /api/auth/refresh` - Refresh access token using refresh token
+- `POST /api/auth/logout` - Revoke refresh token
 - `GET /api/auth/me` - Get current user
 - `PATCH /api/auth/profile` - Update profile name
 - `POST /api/auth/profile/image` - Upload profile image
 - `DELETE /api/auth/profile/image` - Remove profile image
 - `POST /api/auth/change-password` - Change password
+
+### OIDC Authentication
+- `GET /api/auth/oidc/config` - Get OIDC configuration (public)
+- `GET /api/auth/oidc/initiate` - Initiate OIDC login flow (redirects to provider)
+- `GET /api/auth/oidc/callback` - OIDC callback (handles provider redirect)
+- `POST /api/auth/oidc/exchange` - Exchange one-time code for tokens (web)
+- `POST /api/auth/oidc/exchange/mobile` - Exchange IdP access token for app tokens (mobile)
 
 ### Notes
 - `GET /api/notes` - Get all notes (supports `?search=term` and `?tagId=id`)
@@ -87,6 +95,13 @@ pnpm run test:e2e
 - `DELETE /api/notes/:id/permanent` - Permanently delete a note
 - `POST /api/notes/bulk/delete` - Bulk delete notes
 - `POST /api/notes/bulk/archive` - Bulk archive notes
+
+### Note Attachments
+- `POST /api/notes/:noteId/attachments` - Upload an attachment (multipart/form-data)
+- `GET /api/notes/:noteId/attachments` - List all attachments for a note
+- `GET /api/notes/:noteId/attachments/:id` - Get attachment file (stream)
+- `DELETE /api/notes/:noteId/attachments/:id` - Delete an attachment
+- `PATCH /api/notes/:noteId/attachments/reorder` - Reorder attachments (body: `{ orderedIds: string[] }`)
 
 ### Note Sharing
 - `POST /api/notes/:id/shares` - Share a note with a user
@@ -107,6 +122,8 @@ pnpm run test:e2e
 - `GET /api/admin/stats` - Get server statistics
 - `GET /api/admin/settings/registration` - Get registration settings
 - `PATCH /api/admin/settings/registration` - Update registration mode (disabled if locked by env)
+- `GET /api/admin/settings/oidc` - Get OIDC settings
+- `PATCH /api/admin/settings/oidc` - Update OIDC settings (disabled if locked by env)
 - `GET /api/admin/users` - Get all users (supports `?skip=n` and `?take=n`)
 - `GET /api/admin/users/pending` - Get pending users awaiting approval
 - `POST /api/admin/users` - Create a new user

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../core/network/dio_provider.dart';
+import '../../domain/oidc_config.dart';
 
 part 'auth_service.g.dart';
 
@@ -104,6 +105,50 @@ class AuthService {
       return response.data;
     } on DioException catch (e) {
       throw e.response?.data['message'] ?? 'Failed to get profile';
+    }
+  }
+
+  Future<OidcConfig> getOidcConfig() async {
+    try {
+      final response = await _dio.get('/api/auth/oidc/config');
+      return OidcConfig.fromJson(response.data as Map<String, dynamic>);
+    } on DioException catch (_) {
+      // Server may not have OIDC (old version)
+      return const OidcConfig();
+    }
+  }
+
+  Future<String> getRegistrationMode() async {
+    try {
+      final response = await _dio.get('/api/auth/registration-mode');
+      final data = response.data as Map<String, dynamic>;
+      return data['mode'] as String? ?? 'enabled';
+    } on DioException catch (_) {
+      return 'enabled';
+    }
+  }
+
+  /// Revoke refresh token on server.
+  Future<void> revokeRefreshToken(String? refreshToken) async {
+    if (refreshToken == null || refreshToken.isEmpty) return;
+    try {
+      await _dio.post('/api/auth/logout', data: {'refreshToken': refreshToken});
+    } on Exception {
+      // Ignore - ensure local logout always completes
+    }
+  }
+
+  Future<Map<String, dynamic>> exchangeOidcMobileToken(
+    String accessToken,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/api/auth/oidc/exchange/mobile',
+        data: {'access_token': accessToken},
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw e.response?.data['message'] ?? 'Failed to complete sign-in';
     }
   }
 }

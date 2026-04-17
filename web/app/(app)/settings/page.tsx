@@ -162,7 +162,7 @@ export default function SettingsPage() {
   const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const promises: Promise<any>[] = [];
+    const promises: Promise<unknown>[] = [];
 
     // Update name only if it changed and is not empty
     const trimmedName = name.trim();

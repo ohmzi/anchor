@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main, next]
+    tags-ignore:
+      - 'v*'
+    paths-ignore:
+      - 'mobile/**'
+      - '**.md'
+  pull_request:
+    branches: [main, next]
+    paths-ignore:
+      - 'mobile/**'
+      - '**.md'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker:
+    uses: ./.github/workflows/docker-build.yml
+    with:
+      push: false
+      tags: |
+        type=ref,event=branch
+        type=ref,event=pr
+        type=sha,prefix=
+        type=raw,value=latest,enable={{is_default_branch}}

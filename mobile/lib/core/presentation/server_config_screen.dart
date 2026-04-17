@@ -1,10 +1,13 @@
 import 'package:anchor/core/router/app_routes.dart';
+import 'package:anchor/features/auth/presentation/providers/oidc_config_provider.dart';
+import 'package:anchor/features/auth/presentation/providers/registration_mode_provider.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../network/dio_provider.dart';
 import '../network/server_config_provider.dart';
 import '../widgets/app_snackbar.dart';
 import '../widgets/anchor_icon.dart';
@@ -50,6 +53,9 @@ class _ServerConfigScreenState extends ConsumerState<ServerConfigScreen> {
         errorMessage = 'Connection timed out. Check the URL and try again.';
       } else if (e.type == DioExceptionType.connectionError) {
         errorMessage = 'Could not connect to server. Check the URL.';
+      } else if (e.type == DioExceptionType.badCertificate) {
+        errorMessage =
+            'Certificate error. Try enabling "Allow self-signed certificates" below.';
       } else {
         errorMessage = 'Failed to connect to server';
       }
@@ -74,6 +80,12 @@ class _ServerConfigScreenState extends ConsumerState<ServerConfigScreen> {
     final dio = Dio();
     dio.options.connectTimeout = const Duration(seconds: 10);
     dio.options.receiveTimeout = const Duration(seconds: 10);
+    final allowSelfSigned =
+        ref.read(allowSelfSignedCertProvider).value ?? false;
+    final url = _urlController.text.trim();
+    if (allowSelfSigned && url.isNotEmpty) {
+      dio.httpClientAdapter = createSelfSignedCertAdapter(url);
+    }
     return dio;
   }
 
@@ -140,6 +152,8 @@ class _ServerConfigScreenState extends ConsumerState<ServerConfigScreen> {
         }
 
         await notifier.setServerUrl(url);
+        ref.invalidate(oidcConfigProvider);
+        ref.invalidate(registrationModeProvider);
       } else {
         setState(() {
           _error = 'Invalid server response. Is this an Anchor server?';
@@ -181,6 +195,8 @@ class _ServerConfigScreenState extends ConsumerState<ServerConfigScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final allowSelfSigned =
+        ref.watch(allowSelfSignedCertProvider).value ?? false;
 
     return Scaffold(
       body: SafeArea(
@@ -236,6 +252,55 @@ class _ServerConfigScreenState extends ConsumerState<ServerConfigScreen> {
                     validator: _validateUrl,
                   ),
                   const SizedBox(height: 8),
+
+                  // Self-signed certificate toggle
+                  Row(
+                    children: [
+                      Icon(
+                        LucideIcons.shieldOff,
+                        size: 18,
+                        color: allowSelfSigned
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.onSurface
+                                .withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Allow self-signed certificates',
+                              style: theme.textTheme.bodyMedium,
+                            ),
+                            if (allowSelfSigned)
+                              Text(
+                                'Warning: Connection security is reduced',
+                                style: TextStyle(
+                                  color: theme.colorScheme.error,
+                                  fontSize: 12,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: allowSelfSigned,
+                        onChanged: (value) {
+                          ref
+                              .read(allowSelfSignedCertProvider.notifier)
+                              .toggle(value);
+                          if (value && mounted) {
+                            AppSnackbar.showWarning(
+                              context,
+                              message:
+                                  'Self-signed certificates are now accepted. This reduces connection security.',
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                  ),
 
                   // Error message
                   if (_error != null) ...[

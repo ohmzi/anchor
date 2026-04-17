@@ -4,6 +4,7 @@ import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -19,13 +20,17 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { generateApiToken } from './utils/generate-api-token';
 
+const REFRESH_TOKEN_VALIDITY_DAYS = 90;
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private settingsService: SettingsService,
-  ) { }
+  ) {}
 
   async getRegistrationMode() {
     return {
@@ -81,7 +86,7 @@ export class AuthService {
 
     // Only return token if user is active (not pending)
     if (user.status === UserStatus.active) {
-      const tokens = await this.generateTokenPair(user.id, user.email);
+      const tokens = await this.createTokenPair(user.id, user.email);
       return {
         ...tokens,
         user,
@@ -115,6 +120,13 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // OIDC users don't have passwords - they must use OIDC login
+    if (!user.password) {
+      throw new UnauthorizedException(
+        'This account uses OIDC authentication. Please use the OIDC login option.',
+      );
+    }
+
     const isPasswordValid = await bcrypt.compare(
       loginDto.password,
       user.password,
@@ -132,9 +144,10 @@ export class AuthService {
     }
 
     // Remove password from user object
-    const { password: _, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = user;
+    void password;
 
-    const tokens = await this.generateTokenPair(user.id, user.email);
+    const tokens = await this.createTokenPair(user.id, user.email);
     return {
       ...tokens,
       user: userWithoutPassword,
@@ -172,12 +185,23 @@ export class AuthService {
     });
 
     // Generate new token pair
-    const tokens = await this.generateTokenPair(
+    const tokens = await this.createTokenPair(
       storedToken.user.id,
       storedToken.user.email,
     );
 
     return tokens;
+  }
+
+  async revokeRefreshToken(refreshToken?: string): Promise<void> {
+    if (!refreshToken) return;
+    try {
+      await this.prisma.refreshToken.deleteMany({
+        where: { token: refreshToken },
+      });
+    } catch {
+      // Silently ignore - don't leak whether token existed
+    }
   }
 
   async getApiToken(userId: string) {
@@ -252,6 +276,13 @@ export class AuthService {
       throw new ForbiddenException('User not found');
     }
 
+    // OIDC users don't have passwords
+    if (!user.password) {
+      throw new BadRequestException(
+        'Password change is not available for OIDC-authenticated users. Please change your password through your identity provider.',
+      );
+    }
+
     // Verify current password
     const isCurrentPasswordValid = await bcrypt.compare(
       changePasswordDto.currentPassword,
@@ -312,7 +343,7 @@ export class AuthService {
       });
 
       return updatedUser;
-    } catch (error) {
+    } catch {
       throw new BadRequestException(
         'Failed to update profile. Please try again.',
       );
@@ -369,19 +400,18 @@ export class AuthService {
 
       // Delete old image only after successful database update
       if (oldImagePath && oldImagePath !== imagePath) {
-        await this.deleteProfileImage(oldImagePath);
+        this.deleteProfileImage(oldImagePath);
       }
 
       return updatedUser;
-    } catch (error) {
+    } catch {
       // If database update fails, delete the newly uploaded file
       if (fileSaved && fs.existsSync(filePath)) {
         try {
           fs.unlinkSync(filePath);
-        } catch (deleteError) {
-          console.error(
+        } catch {
+          this.logger.error(
             `Failed to delete newly uploaded file after DB error: ${filePath}`,
-            deleteError,
           );
         }
       }
@@ -421,18 +451,18 @@ export class AuthService {
 
       // Delete old image only after successful database update
       if (oldImagePath) {
-        await this.deleteProfileImage(oldImagePath);
+        this.deleteProfileImage(oldImagePath);
       }
 
       return updatedUser;
-    } catch (error) {
+    } catch {
       throw new BadRequestException(
         'Failed to remove profile image. Please try again.',
       );
     }
   }
 
-  private async deleteProfileImage(profileImagePath: string): Promise<void> {
+  private deleteProfileImage(profileImagePath: string): void {
     if (!profileImagePath) return;
 
     try {
@@ -445,10 +475,9 @@ export class AuthService {
       if (fs.existsSync(fullPath)) {
         fs.unlinkSync(fullPath);
       }
-    } catch (error) {
-      console.error(
-        `Failed to delete old profile image at ${profileImagePath}:`,
-        error,
+    } catch {
+      this.logger.error(
+        `Failed to delete old profile image at ${profileImagePath}`,
       );
     }
   }
@@ -477,8 +506,11 @@ export class AuthService {
     );
   }
 
-  // Generate both access and refresh tokens
-  private async generateTokenPair(userId: string, email: string) {
+  /**
+   * Create access and refresh token pair for a user.
+   * Used by login, register, and OIDC flows.
+   */
+  async createTokenPair(userId: string, email: string) {
     const payload = { email, sub: userId };
 
     // Generate access token (short-lived)
@@ -487,7 +519,7 @@ export class AuthService {
     // Generate refresh token (long-lived)
     const refreshTokenString = this.generateRefreshTokenString();
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
+    expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_VALIDITY_DAYS);
 
     // Store refresh token in database
     await this.prisma.refreshToken.create({

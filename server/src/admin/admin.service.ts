@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
+import { OidcConfigService } from '../auth/oidc/oidc-config.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { NoteState } from 'src/generated/prisma/enums';
@@ -18,7 +19,8 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private settingsService: SettingsService,
-  ) {}
+    private oidcConfigService: OidcConfigService,
+  ) { }
 
   async getStats() {
     const [totalUsers, totalNotes, totalTags] = await Promise.all([
@@ -59,6 +61,7 @@ export class AdminService {
           name: true,
           isAdmin: true,
           status: true,
+          oidcSubject: true,
           createdAt: true,
           updatedAt: true,
           _count: {
@@ -76,8 +79,13 @@ export class AdminService {
       this.prisma.user.count(),
     ]);
 
+    const usersWithAuthMethod = users.map(({ oidcSubject, ...rest }) => ({
+      ...rest,
+      authMethod: oidcSubject ? ('oidc' as const) : ('local' as const),
+    }));
+
     return {
-      users,
+      users: usersWithAuthMethod,
       total,
       skip,
       take,
@@ -94,12 +102,18 @@ export class AdminService {
         name: true,
         isAdmin: true,
         status: true,
+        oidcSubject: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
-    return users;
+    const usersWithAuthMethod = users.map(({ oidcSubject, ...rest }) => ({
+      ...rest,
+      authMethod: oidcSubject ? ('oidc' as const) : ('local' as const),
+    }));
+
+    return usersWithAuthMethod;
   }
 
   async createUser(createUserDto: CreateUserDto) {
@@ -133,7 +147,7 @@ export class AdminService {
     return user;
   }
 
-  async updateUser(id: string, updateUserDto: UpdateUserDto) {
+  async updateUser(id: string, updateUserDto: UpdateUserDto, currentUserId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
     });
@@ -153,9 +167,27 @@ export class AdminService {
       }
     }
 
+    // Demotion safety: cannot remove admin status from current user or the last admin
+    if (updateUserDto.isAdmin === false) {
+      if (id === currentUserId) {
+        throw new BadRequestException('Cannot change your own admin status');
+      }
+      const adminCount = await this.prisma.user.count({
+        where: { isAdmin: true },
+      });
+      if (adminCount === 1) {
+        throw new BadRequestException('Cannot remove admin status from the last admin user');
+      }
+    }
+
+    const data: Partial<UpdateUserDto> = {};
+    if (updateUserDto.email !== undefined) data.email = updateUserDto.email;
+    if (updateUserDto.name !== undefined) data.name = updateUserDto.name;
+    if (updateUserDto.isAdmin !== undefined) data.isAdmin = updateUserDto.isAdmin;
+
     const updatedUser = await this.prisma.user.update({
       where: { id },
-      data: updateUserDto,
+      data,
       select: {
         id: true,
         email: true,
@@ -280,5 +312,27 @@ export class AdminService {
     });
 
     return { message: 'User rejected and deleted successfully' };
+  }
+
+  async getOidcSettings() {
+    return this.oidcConfigService.getOidcSettings();
+  }
+
+  async updateOidcSettings(settings: {
+    enabled?: boolean;
+    providerName?: string;
+    issuerUrl?: string;
+    clientId?: string;
+    clientSecret?: string;
+    clearClientSecret?: boolean;
+    disableInternalAuth?: boolean;
+  }) {
+    const { clearClientSecret, ...rest } = settings;
+    const toSet = { ...rest };
+    if (clearClientSecret) {
+      toSet.clientSecret = '';
+    }
+    await this.oidcConfigService.setOidcSettings(toSet);
+    return this.oidcConfigService.getOidcSettings();
   }
 }

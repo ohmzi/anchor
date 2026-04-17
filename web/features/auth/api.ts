@@ -6,6 +6,8 @@ import type {
   RegisterCredentials,
   ChangePasswordCredentials,
   UpdateProfileDto,
+  OidcConfig,
+  OidcExchangeResponse,
   User
 } from "./types";
 
@@ -53,4 +55,19 @@ export async function regenerateApiToken(): Promise<ApiTokenResponse> {
 
 export async function revokeApiToken(): Promise<ApiTokenResponse> {
   return api.delete("api/auth/api-token").json<ApiTokenResponse>();
+}
+
+export async function getOidcConfig(): Promise<OidcConfig> {
+  return api.get("api/auth/oidc/config").json<OidcConfig>();
+}
+
+export async function exchangeOidcCode(code: string): Promise<OidcExchangeResponse> {
+  return api
+    .post("api/auth/oidc/exchange", { json: { code } })
+    .json<OidcExchangeResponse>();
+}
+
+export async function revokeRefreshToken(refreshToken?: string | null): Promise<void> {
+  if (!refreshToken) return;
+  return api.post("api/auth/logout", { json: { refreshToken } }).json<void>();
 }
